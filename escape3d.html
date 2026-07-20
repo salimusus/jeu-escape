@@ -1,0 +1,2849 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🔐 Escape 3D — Telio & Marlon</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+    html,body { height:100%; overflow:hidden; background:#05080f; overscroll-behavior:none; touch-action:none;
+        font-family:'Comic Sans MS','Chalkboard SE','Segoe UI',cursive,sans-serif; color:#ffe8c2; }
+    #c3d { position:fixed; inset:0; touch-action:none; }
+
+    /* ===== vignettage cinéma ===== */
+    #vignette { position:fixed; inset:0; pointer-events:none; z-index:5;
+        background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%); }
+
+    /* ===== HUD ===== */
+    #hud { position:fixed; top:0; left:0; right:0; z-index:10; display:none; }
+    #hud.show { display:block; }
+    .hud-top { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 10px;
+        background:linear-gradient(180deg, rgba(10,16,28,0.85), rgba(10,16,28,0.35) 80%, transparent); }
+    .hbtn { font-family:inherit; cursor:pointer; font-size:clamp(0.9rem,3.4vw,1.15rem); font-weight:900;
+        background:rgba(255,232,194,0.12); color:#ffe8c2; border:2px solid rgba(255,201,77,0.55);
+        border-radius:12px; padding:5px 10px; }
+    .hbtn:active { transform:scale(0.93); }
+    #hTitle { font-weight:900; font-size:clamp(0.8rem,3.2vw,1.1rem); text-shadow:0 2px 6px rgba(0,0,0,0.7);
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #hTimer { font-family:'Courier New',monospace; font-weight:900; color:#ffc94d; font-size:clamp(0.8rem,3.2vw,1.05rem); }
+    #goal { text-align:center; margin:0 auto; max-width:640px; padding:6px 14px; font-weight:900;
+        font-size:clamp(0.78rem,3.2vw,1rem); color:#ffe8c2; background:rgba(6,11,20,0.62);
+        border:2px solid rgba(255,201,77,0.4); border-radius:16px; backdrop-filter:blur(4px);
+        min-height:2em; text-shadow:0 1px 3px rgba(0,0,0,0.8); }
+    #goal.flash { animation:pop 0.4s ease; }
+    @keyframes pop { 0%{transform:scale(0.96)} 60%{transform:scale(1.03)} 100%{transform:scale(1)} }
+
+    /* ===== inventaire ===== */
+    #inv { position:fixed; bottom:10px; left:50%; transform:translateX(-50%); z-index:10;
+        display:none; align-items:center; gap:8px; padding:7px 12px;
+        background:linear-gradient(180deg, rgba(13,22,38,0.9), rgba(6,11,20,0.95));
+        border:3px solid #ffc94d; border-radius:20px; }
+    #inv.show { display:flex; }
+    .slot { width:52px; height:52px; border-radius:14px;
+        background:rgba(255,232,194,0.07); border:3px dashed rgba(255,201,77,0.35);
+        display:flex; align-items:center; justify-content:center; font-size:1.7rem; cursor:pointer;
+        transition:transform 0.15s ease; }
+    .slot.full { border-style:solid; border-color:#ffc94d; background:rgba(255,201,77,0.15); }
+    .slot.sel  { transform:scale(1.12); box-shadow:0 0 16px rgba(255,201,77,0.9); border-color:#fff; }
+
+    /* ===== joystick ===== */
+    #joy { position:fixed; left:18px; bottom:18px; width:118px; height:118px; z-index:11;
+        border-radius:50%; background:rgba(255,232,194,0.08); border:3px solid rgba(255,201,77,0.4);
+        display:none; touch-action:none; }
+    #joy.show { display:block; }
+    #knob { position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%;
+        transform:translate(-50%,-50%);
+        background:radial-gradient(circle at 35% 30%, #ffe8c2, #ffc94d 60%, #b8860b);
+        border:3px solid #fff; box-shadow:0 4px 10px rgba(0,0,0,0.5); }
+
+    /* ===== écrans ===== */
+    .screen { position:fixed; inset:0; z-index:50; display:none; flex-direction:column;
+        align-items:center; justify-content:center; gap:13px; padding:22px; text-align:center;
+        background:radial-gradient(circle at 50% 22%, #ffcf70 0%, #8a6a28 26%, #1a2436 60%, #05080f 100%); }
+    .screen.show { display:flex; }
+    .big { font-size:clamp(1.6rem,7.5vw,2.9rem); font-weight:900; color:#fff; line-height:1.1;
+        text-shadow:0 3px 0 #a63c0f, 0 6px 0 #5c1f06, 0 10px 22px rgba(0,0,0,0.45); }
+    .sub { font-weight:900; color:#fff3d6; font-size:clamp(0.85rem,3.5vw,1.15rem);
+        text-shadow:0 2px 6px rgba(0,0,0,0.5); }
+    .cards { display:flex; flex-wrap:wrap; gap:14px; justify-content:center; }
+    .card { width:150px; border-radius:22px; padding:14px 10px; cursor:pointer; font-family:inherit;
+        border:4px solid rgba(255,232,194,0.55); background:rgba(20,12,5,0.55); color:#fff;
+        display:flex; flex-direction:column; align-items:center; gap:6px;
+        transition:transform 0.15s ease; }
+    .card:active { transform:scale(0.95); }
+    .card .ic { font-size:2.6rem; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5)); }
+    .card .nm { font-weight:900; font-size:0.95rem; }
+    .card .dc { font-weight:700; font-size:0.7rem; color:#ffd98f; line-height:1.25; }
+    .card .st { font-size:1.1rem; }
+    .chipb { font-family:inherit; cursor:pointer; font-weight:900; color:#fff;
+        font-size:clamp(0.8rem,3.4vw,1rem); padding:9px 18px; border-radius:40px;
+        border:3px solid rgba(255,232,194,0.55); background:rgba(38,19,7,0.5); }
+    .go { font-size:clamp(1.05rem,4.6vw,1.5rem); padding:12px 32px; border-radius:60px; font-family:inherit;
+        background:linear-gradient(135deg,#ffe259,#ffa751); color:#5c2b06; border:4px solid #fff;
+        box-shadow:0 6px 0 rgba(92,43,6,0.55), 0 10px 24px rgba(0,0,0,0.4); font-weight:900; cursor:pointer; }
+    .go:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(92,43,6,0.55); }
+
+    /* clavier code */
+    #pad { background:rgba(3,6,12,0.88); backdrop-filter:blur(5px); z-index:60; }
+    .pad-box { background:linear-gradient(180deg,#1b2940,#0d1626); border:5px solid #ffc94d; border-radius:24px;
+        padding:16px; display:flex; flex-direction:column; gap:10px; align-items:center; }
+    #padDisp { font-family:'Courier New',monospace; letter-spacing:8px; font-size:1.7rem; font-weight:900;
+        background:#06121e; color:#7CFC9A; border:3px solid #ffc94d; border-radius:12px;
+        min-width:190px; text-align:center; padding:8px 12px; min-height:2.1em; }
+    .pgrid { display:grid; grid-template-columns:repeat(3,62px); gap:8px; }
+    .pk { height:54px; border-radius:14px; font-size:1.3rem; font-weight:900; font-family:inherit;
+        background:rgba(255,232,194,0.12); color:#ffe8c2; border:3px solid rgba(255,201,77,0.5); cursor:pointer; }
+    .pk:active { transform:scale(0.93); }
+    .pk.ok { background:linear-gradient(135deg,#7CFC9A,#34a853); color:#06381a; border-color:#fff; }
+    .pk.del { color:#ff9a9a; }
+
+    /* note / parchemin */
+    #note { z-index:58; background:rgba(3,6,12,0.8); backdrop-filter:blur(4px); }
+    .note-box { max-width:420px; background:linear-gradient(180deg,#f6e7c1,#ecd8a8);
+        border:4px solid #8a5a24; border-radius:6px; padding:22px 20px;
+        box-shadow:0 14px 40px rgba(0,0,0,0.6), inset 0 0 30px rgba(138,90,36,0.25);
+        color:#4a2f10; font-weight:800; font-size:clamp(0.95rem,4vw,1.2rem); line-height:1.4;
+        transform:rotate(-1.2deg); }
+    .note-box .nt { font-size:1.6rem; margin-bottom:8px; }
+
+    #win { z-index:70; }
+    .confetti { position:fixed; top:-8%; font-size:1.6rem; z-index:75; pointer-events:none; animation:cfall linear forwards; }
+    @keyframes cfall { to { transform:translateY(120vh) rotate(720deg); } }
+    #fade { position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; transition:opacity 1.1s ease; z-index:40; }
+
+    #err { z-index:90; }
+
+    /* ===== TABLETTE (Redmi & co) : commandes plus grandes, mieux espacées ===== */
+    @media (min-width:700px) and (min-height:560px){
+        #joy { width:172px; height:172px; left:26px; bottom:26px; }
+        #knob { width:76px; height:76px; }
+        .slot { width:70px; height:70px; font-size:2rem; border-radius:18px; }
+        #inv { gap:12px; bottom:16px; }
+        .hbtn { font-size:1.5rem; padding:10px 16px; }
+        #goal { font-size:1.12rem; max-width:760px; padding:8px 18px; }
+        #hTitle { font-size:1.2rem; }
+        #hTimer { font-size:1.1rem; }
+    }
+    @media (max-height:520px){ .slot{width:42px;height:42px;font-size:1.3rem} #joy{width:96px;height:96px} }
+</style>
+</head>
+<body>
+<canvas id="c3d"></canvas>
+<div id="vignette"></div>
+<div id="fade"></div>
+
+<div id="hud">
+    <div class="hud-top">
+        <button class="hbtn" id="bHome">🏠</button>
+        <span id="hTitle">Salle</span>
+        <span id="hTimer">⏱ 00:00</span>
+        <button class="hbtn" id="bHint">💡</button>
+        <button class="hbtn" id="bRestart">🔄</button>
+        <button class="hbtn" id="bFull">⛶</button>
+    </div>
+    <div id="goal">…</div>
+</div>
+<div id="inv"><span style="font-weight:900">🎒</span></div>
+<div id="joy"><div id="knob"></div></div>
+
+<div class="screen show" id="menu">
+    <div style="font-size:clamp(1.6rem,7vw,2.6rem)">🔐 🚪 🗝️</div>
+    <div class="big">ESCAPE 3D<br>TELIO &amp; MARLON</div>
+    <div class="sub" style="max-width:470px">
+        Le Grand Horloger a éparpillé ses <b>8 clés</b> à travers le temps et l'espace.<br>
+        Deux apprentis détectives sont sur l'affaire : <b>fouille chaque lieu en 3D</b>,
+        traverse les pièces, prends les objets <b>en main</b>, ouvre les tiroirs... et trouve la sortie !
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="sub" style="font-weight:700;font-size:0.85rem;max-width:430px">
+        👆 Glisse pour regarder autour de toi · 🕹️ joystick pour marcher · touche les objets pour fouiller<br>
+        🎒 Touche un objet du sac pour le <b>tenir en main</b>, puis touche où l'utiliser
+    </div>
+    <a href="index.html" style="margin-top:14px;color:#ffd23b;font-weight:900;text-decoration:none;font-size:0.95rem">🎠 Retour à l'accueil</a>
+</div>
+
+<div class="screen" id="pad">
+    <div class="pad-box">
+        <div class="sub">🔢 Entre le code secret</div>
+        <div id="padDisp">_</div>
+        <div class="pgrid">
+            <button class="pk">1</button><button class="pk">2</button><button class="pk">3</button>
+            <button class="pk">4</button><button class="pk">5</button><button class="pk">6</button>
+            <button class="pk">7</button><button class="pk">8</button><button class="pk">9</button>
+            <button class="pk del">⌫</button><button class="pk">0</button><button class="pk ok">✔</button>
+        </div>
+        <button class="chipb" id="padClose">✖ Fermer</button>
+    </div>
+</div>
+
+<div class="screen" id="note">
+    <div class="note-box">
+        <div class="nt">📜</div>
+        <div id="noteTxt"></div>
+    </div>
+    <button class="chipb" id="noteClose">✔ J'ai compris</button>
+</div>
+
+<div class="screen" id="win">
+    <div style="font-size:clamp(2rem,9vw,3.2rem)">🎉🔓🎉</div>
+    <div class="big" id="winT">BRAVO !</div>
+    <div class="sub" id="winTime"></div>
+    <button class="go" id="bNext">➡️ Salle suivante</button>
+    <button class="chipb" id="bWinMenu">🗺️ Choisir une salle</button>
+</div>
+
+<div class="screen" id="err">
+    <div style="font-size:2.4rem">📡</div>
+    <div class="big" style="font-size:1.4rem">Connexion nécessaire</div>
+    <div class="sub">Le moteur 3D se télécharge au premier lancement.<br>Vérifie ta connexion internet puis recharge la page.</div>
+    <button class="go" onclick="location.reload()">🔄 Recharger</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+if (!window.THREE) {
+    document.getElementById('menu').classList.remove('show');
+    document.getElementById('err').classList.add('show');
+} else (function () {
+
+/* ============================================================
+   OUTILS : audio, voix, textures procédurales, tweens
+   ============================================================ */
+let actx = null;
+function ctx() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    if (actx && actx.state === 'suspended') actx.resume(); return actx; }
+function tone(f, d, t, v, w) {
+    const c = ctx(); if (!c) return;
+    try {
+        const o = c.createOscillator(), g = c.createGain();
+        o.type = t || 'triangle'; o.frequency.setValueAtTime(f, c.currentTime + (w || 0));
+        g.gain.setValueAtTime(v || 0.13, c.currentTime + (w || 0));
+        g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + (w || 0) + d);
+        o.connect(g); g.connect(c.destination);
+        o.start(c.currentTime + (w || 0)); o.stop(c.currentTime + (w || 0) + d + 0.05);
+    } catch (e) {}
+}
+const sTap = () => tone(620, 0.07, 'triangle', 0.1);
+const sPick = () => { tone(660, 0.1); tone(990, 0.12, 'triangle', 0.12, 0.08); };
+const sNo = () => tone(170, 0.2, 'sawtooth', 0.1);
+const sUnlock = () => { tone(520, 0.1); tone(660, 0.1, 'triangle', 0.13, 0.1); tone(880, 0.16, 'triangle', 0.14, 0.2); };
+const sWin = () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 'triangle', 0.14, i * 0.14));
+const sHonk = () => { tone(310, 0.32, 'square', 0.16); tone(392, 0.32, 'square', 0.14); };
+const sTick = () => tone(1500, 0.02, 'square', 0.015);
+function melody() { [523, 587, 659, 784, 659, 587, 523].forEach((f, i) => tone(f, 0.16, 'sine', 0.1, i * 0.18)); }
+
+function speak(txt, rate) {
+    try {
+        if (!('speechSynthesis' in window)) return;
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(txt);
+        u.lang = 'fr-FR'; u.rate = rate || 0.98; u.pitch = 1.05;
+        window.speechSynthesis.speak(u);
+    } catch (e) {}
+}
+
+/* --- textures canvas --- */
+function cnv(w, h, draw) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    draw(c.getContext('2d'), w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.anisotropy = 4;
+    return t;
+}
+function texWood(base, dark) {
+    return cnv(512, 512, (g, w, h) => {
+        g.fillStyle = base; g.fillRect(0, 0, w, h);
+        const pw = 86;
+        for (let x = 0; x < w; x += pw) {
+            g.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.07) + ')';
+            g.fillRect(x, 0, 3, h);
+            for (let i = 0; i < 22; i++) {
+                g.strokeStyle = 'rgba(' + dark + ',' + (0.10 + Math.random() * 0.12) + ')';
+                g.lineWidth = 1 + Math.random() * 1.6;
+                const y0 = Math.random() * h;
+                g.beginPath(); g.moveTo(x + 4, y0);
+                g.bezierCurveTo(x + pw * 0.3, y0 + 14, x + pw * 0.6, y0 - 14, x + pw - 4, y0 + (Math.random() * 26 - 13));
+                g.stroke();
+            }
+        }
+        for (let y = 0; y < h; y += 158) { g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(0, y, w, 2); }
+    });
+}
+function texWall(base, stripe, alpha) {
+    return cnv(512, 512, (g, w, h) => {
+        g.fillStyle = base; g.fillRect(0, 0, w, h);
+        g.fillStyle = 'rgba(' + stripe + ',' + (alpha || 0.10) + ')';
+        for (let x = 0; x < w; x += 64) g.fillRect(x, 0, 26, h);
+        for (let i = 0; i < 900; i++) {
+            g.fillStyle = 'rgba(0,0,0,' + Math.random() * 0.05 + ')';
+            g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+        }
+    });
+}
+function texNightWindow() {
+    return cnv(512, 512, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, '#0a1533'); gr.addColorStop(0.7, '#16294f'); gr.addColorStop(1, '#0c1526');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 130; i++) {
+            g.fillStyle = 'rgba(255,255,240,' + (0.35 + Math.random() * 0.6) + ')';
+            const s = Math.random() * 2.4 + 0.6;
+            g.fillRect(Math.random() * w, Math.random() * h * 0.75, s, s);
+        }
+        g.fillStyle = '#fdf6d8';
+        g.beginPath(); g.arc(w * 0.72, h * 0.24, 46, 0, 7); g.fill();
+        g.fillStyle = 'rgba(253,246,216,0.25)';
+        g.beginPath(); g.arc(w * 0.72, h * 0.24, 74, 0, 7); g.fill();
+        g.fillStyle = '#060b14';
+        [0.05, 0.2, 0.38, 0.6, 0.82].forEach((x, i) => {
+            const bh = 90 + (i * 53) % 120;
+            g.fillRect(x * w, h - bh, 70, bh);
+        });
+        g.fillStyle = 'rgba(255,220,130,0.85)';
+        for (let i = 0; i < 26; i++) g.fillRect((0.05 + Math.random() * 0.85) * w, h - Math.random() * 150, 6, 8);
+    });
+}
+function texStreet() {
+    return cnv(512, 512, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, '#0b1428'); gr.addColorStop(0.62, '#131f38'); gr.addColorStop(0.64, '#1c1f24'); gr.addColorStop(1, '#101216');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 60; i++) { g.fillStyle = 'rgba(255,255,240,0.6)'; g.fillRect(Math.random() * w, Math.random() * h * 0.4, 2, 2); }
+        g.strokeStyle = '#2c3442'; g.lineWidth = 8;
+        g.beginPath(); g.moveTo(w * 0.3, h * 0.62); g.lineTo(w * 0.3, h * 0.18); g.stroke();
+        g.fillStyle = '#ffe9a8';
+        g.beginPath(); g.arc(w * 0.3, h * 0.16, 15, 0, 7); g.fill();
+        const lg = g.createRadialGradient(w * 0.3, h * 0.2, 6, w * 0.3, h * 0.42, 190);
+        lg.addColorStop(0, 'rgba(255,233,168,0.5)'); lg.addColorStop(1, 'transparent');
+        g.fillStyle = lg; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#0a0d13';
+        [0.55, 0.75, 0.9].forEach(x => g.fillRect(x * w, h * 0.3, 60, h * 0.34));
+        // gouttes de pluie sur la vitre
+        for (let i = 0; i < 90; i++) {
+            g.fillStyle = 'rgba(200,225,255,' + (0.12 + Math.random() * 0.2) + ')';
+            const x = Math.random() * w, y = Math.random() * h, r = 1.5 + Math.random() * 3;
+            g.beginPath(); g.ellipse(x, y, r, r * 1.7, 0, 0, 7); g.fill();
+        }
+    });
+}
+function texPainting() {
+    return cnv(256, 256, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h);
+        gr.addColorStop(0, '#ffb347'); gr.addColorStop(0.6, '#e4572e'); gr.addColorStop(1, '#5c2410');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#ffe08a'; g.beginPath(); g.arc(w * 0.5, h * 0.42, 34, 0, 7); g.fill();
+        g.fillStyle = '#2b1005';
+        g.fillRect(0, h * 0.72, w, h * 0.28);
+        const fig = (x) => {
+            g.beginPath(); g.arc(x, h * 0.60, 10, 0, 7); g.fill();
+            g.fillRect(x - 6, h * 0.64, 12, 26);
+        };
+        fig(w * 0.36); fig(w * 0.62);
+        g.fillRect(w * 0.40, h * 0.68, w * 0.2, 4);  // poignée de main
+    });
+}
+function texRug(base, border, star) {
+    return cnv(256, 256, (g, w, h) => {
+        g.fillStyle = base; g.fillRect(0, 0, w, h);
+        g.strokeStyle = border; g.lineWidth = 14; g.strokeRect(10, 10, w - 20, h - 20);
+        g.fillStyle = border;
+        if (star) {
+            g.font = '34px serif'; g.textAlign = 'center';
+            for (let i = 0; i < 8; i++) g.fillText('★', 40 + (i % 4) * 58, 70 + Math.floor(i / 4) * 110);
+        } else {
+            g.strokeRect(40, 40, w - 80, h - 80);
+        }
+    });
+}
+function texDial() {
+    return cnv(128, 128, (g, w, h) => {
+        g.fillStyle = '#0c1520'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill();
+        g.strokeStyle = '#7CFC9A'; g.lineWidth = 3;
+        for (let i = 0; i < 9; i++) {
+            const a = Math.PI * 0.75 + i * Math.PI * 0.19;
+            g.beginPath();
+            g.moveTo(64 + Math.cos(a) * 48, 64 + Math.sin(a) * 48);
+            g.lineTo(64 + Math.cos(a) * 56, 64 + Math.sin(a) * 56);
+            g.stroke();
+        }
+        g.strokeStyle = '#ff9a3d'; g.lineWidth = 4;
+        g.beginPath(); g.moveTo(64, 64); g.lineTo(64 + 34, 64 - 26); g.stroke();
+        g.fillStyle = '#7CFC9A'; g.beginPath(); g.arc(64, 64, 5, 0, 7); g.fill();
+    });
+}
+function texClock(hour) {
+    return cnv(256, 256, (g, w, h) => {
+        g.fillStyle = '#f7efdb'; g.beginPath(); g.arc(128, 128, 120, 0, 7); g.fill();
+        g.strokeStyle = '#4a2f10'; g.lineWidth = 8; g.beginPath(); g.arc(128, 128, 118, 0, 7); g.stroke();
+        g.fillStyle = '#4a2f10'; g.font = 'bold 30px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        for (let n = 1; n <= 12; n++) {
+            const a = -Math.PI / 2 + n * Math.PI / 6;
+            g.fillText(String(n), 128 + Math.cos(a) * 92, 128 + Math.sin(a) * 92);
+        }
+        const ah = -Math.PI / 2 + hour * Math.PI / 6;
+        g.strokeStyle = '#4a2f10'; g.lineWidth = 10;
+        g.beginPath(); g.moveTo(128, 128); g.lineTo(128 + Math.cos(ah) * 52, 128 + Math.sin(ah) * 52); g.stroke();
+        g.lineWidth = 6;
+        g.beginPath(); g.moveTo(128, 128); g.lineTo(128, 30); g.stroke();
+        g.fillStyle = '#a33'; g.beginPath(); g.arc(128, 128, 8, 0, 7); g.fill();
+    });
+}
+function texPoster(emoji, bg) {
+    return cnv(256, 340, (g, w, h) => {
+        g.fillStyle = bg; g.fillRect(0, 0, w, h);
+        g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 10; g.strokeRect(8, 8, w - 16, h - 16);
+        g.font = '150px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(emoji, w / 2, h / 2);
+    });
+}
+function texTreasureMap(revealed) {
+    return cnv(320, 240, (g, w, h) => {
+        g.fillStyle = '#e8d3a0'; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 44; i++) { g.fillStyle = 'rgba(120,80,30,' + (0.04 + Math.random() * 0.09) + ')'; const r = 6 + Math.random() * 22; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, r, 0, 7); g.fill(); }
+        g.strokeStyle = '#6b4a26'; g.lineWidth = 3; g.beginPath();
+        g.moveTo(30, 120); g.bezierCurveTo(90, 60, 150, 180, 220, 110); g.bezierCurveTo(260, 80, 300, 140, 300, 120); g.stroke();
+        g.strokeStyle = '#8a2f1f'; g.lineWidth = 3; g.setLineDash([8, 8]);
+        g.beginPath(); g.moveTo(60, 190); g.lineTo(140, 150); g.lineTo(200, 190); g.lineTo(250, 140); g.stroke(); g.setLineDash([]);
+        g.strokeStyle = '#a11'; g.lineWidth = 6;
+        g.beginPath(); g.moveTo(238, 128); g.lineTo(262, 152); g.moveTo(262, 128); g.lineTo(238, 152); g.stroke();
+        g.strokeStyle = '#5a3a1a'; g.lineWidth = 2; g.beginPath(); g.arc(280, 50, 22, 0, 7); g.stroke();
+        g.fillStyle = '#8a2f1f'; g.beginPath(); g.moveTo(280, 32); g.lineTo(286, 52); g.lineTo(280, 48); g.lineTo(274, 52); g.fill();
+        if (revealed) {
+            g.fillStyle = 'rgba(150,20,20,0.92)'; g.font = 'bold 42px serif'; g.textAlign = 'center';
+            g.fillText('4  1  9', w / 2, h - 34);
+            g.font = 'bold 15px serif'; g.fillStyle = '#5a3a1a';
+            g.fillText('~ code du coffre ~', w / 2, h - 10);
+        }
+    });
+}
+function texSpace() {
+    return cnv(512, 512, (g, w, h) => {
+        g.fillStyle = '#02030a'; g.fillRect(0, 0, w, h);
+        for (let i = 0; i < 420; i++) { const s = Math.random() * 2 + 0.4; g.fillStyle = 'rgba(255,255,255,' + (0.3 + Math.random() * 0.7) + ')'; g.fillRect(Math.random() * w, Math.random() * h, s, s); }
+        const pg = g.createRadialGradient(w * 0.34, h * 0.4, 10, w * 0.34, h * 0.4, 110);
+        pg.addColorStop(0, '#7fb2ff'); pg.addColorStop(0.6, '#2d6fb3'); pg.addColorStop(1, '#0a2a52');
+        g.fillStyle = pg; g.beginPath(); g.arc(w * 0.34, h * 0.4, 100, 0, 7); g.fill();
+        g.strokeStyle = 'rgba(220,200,160,0.6)'; g.lineWidth = 8; g.beginPath(); g.ellipse(w * 0.34, h * 0.4, 150, 40, -0.4, 0, 7); g.stroke();
+        g.fillStyle = '#cfd8e6'; g.beginPath(); g.arc(w * 0.72, h * 0.7, 26, 0, 7); g.fill();
+    });
+}
+
+/* --- tweens --- */
+const anims = [];
+function tween(dur, fn, onDone) { anims.push({ t0: performance.now(), dur, fn, onDone }); }
+function stepAnims(now) {
+    for (let i = anims.length - 1; i >= 0; i--) {
+        const a = anims[i];
+        let t = (now - a.t0) / a.dur;
+        if (t >= 1) { a.fn(1); anims.splice(i, 1); if (a.onDone) a.onDone(); }
+        else a.fn(1 - Math.pow(1 - t, 3));
+    }
+}
+
+/* ============================================================
+   MOTEUR : rendu, caméra, interactions, HUD
+   ============================================================ */
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c3d'), antialias: true, powerPreference: 'high-performance' });
+let dprCap = 1.75;                       // plafonné pour les tablettes Android
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;   // rendu cinéma
+renderer.toneMappingExposure = 1.08;
+/* qualité adaptative : si la tablette rame, on baisse la définition (jamais l'inverse en cours de partie) */
+let fpsAcc = 0, fpsN = 0, fpsCool = 0;
+function perfSample(dt) {
+    if (!G.playing) return;
+    fpsAcc += dt; fpsN++;
+    if (fpsN >= 60) {
+        const avg = fpsAcc / fpsN; fpsAcc = 0; fpsN = 0;
+        if (fpsCool > 0) { fpsCool--; return; }
+        if (avg > 1 / 34 && dprCap > 1.0) {          // < ~34 fps
+            dprCap = dprCap > 1.3 ? 1.25 : 1.0;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, dprCap));
+            fpsCool = 3;
+        }
+    }
+}
+
+let scene = null, camera = null;
+const G = {
+    playing: false, level: null, idx: 0,
+    yaw: 0, pitch: 0, pos: new THREE.Vector3(),
+    bounds: null, seated: false,
+    inter: [],           // meshes interactifs (roots)
+    inv: [], sel: -1,
+    t0: 0, timerId: null, hintIdx: 0,
+    tickers: [],         // fn(dt, time) par frame
+    clockAcc: 0
+};
+let progress = {};
+try { progress = JSON.parse(localStorage.getItem('escape3d_progress') || '{}') || {}; } catch (e) { progress = {}; }
+const saveP = () => { try { localStorage.setItem('escape3d_progress', JSON.stringify(progress)); } catch (e) {} };
+
+function resize() {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    if (camera) { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); }
+}
+window.addEventListener('resize', resize);
+
+function msg(t, spoken) {
+    const g = document.getElementById('goal');
+    g.textContent = t;
+    g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash');
+    if (spoken) speak(t);
+}
+function toastName(n) { msg('👁️ ' + n); }
+
+/* --- inventaire --- */
+function renderInv() {
+    const bar = document.getElementById('inv');
+    bar.innerHTML = '<span style="font-weight:900">🎒</span>';
+    for (let i = 0; i < 4; i++) {
+        const s = document.createElement('div');
+        s.className = 'slot' + (G.inv[i] ? ' full' : '') + (i === G.sel ? ' sel' : '');
+        s.textContent = G.inv[i] ? G.inv[i].emoji : '';
+        s.dataset.i = i;
+        bar.appendChild(s);
+    }
+    updateHeld();
+}
+document.getElementById('inv').addEventListener('click', e => {
+    const s = e.target.closest('.slot');
+    if (!s || !G.inv[+s.dataset.i]) return;
+    sTap();
+    G.sel = (G.sel === +s.dataset.i) ? -1 : +s.dataset.i;
+    if (G.sel >= 0) msg('🎒 Tu tiens ' + G.inv[G.sel].name + '. Touche où l\'utiliser !');
+    renderInv();
+});
+function addItem(id, emoji, name, hand) {
+    G.inv.push({ id, emoji, name, hand });
+    sPick();
+    msg('🎒 Tu as trouvé ' + name + ' !', true);
+    renderInv();
+}
+const has = id => G.inv.some(i => i.id === id);
+function consume(id) {
+    const k = G.inv.findIndex(i => i.id === id);
+    if (k >= 0) { G.inv.splice(k, 1); if (G.sel === k) G.sel = -1; else if (G.sel > k) G.sel--; renderInv(); }
+}
+const selId = () => (G.sel >= 0 ? G.inv[G.sel].id : null);
+
+/* --- caméra tactile : glisser = regarder, tap = interagir --- */
+const ray = new THREE.Raycaster();
+let ptr = null;
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', e => { ptr = { x: e.clientX, y: e.clientY, moved: false, id: e.pointerId }; });
+cv.addEventListener('pointermove', e => {
+    if (!ptr || e.pointerId !== ptr.id) return;
+    const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y;
+    if (Math.abs(dx) + Math.abs(dy) > 6) ptr.moved = true;
+    if (ptr.moved && G.playing) {
+        const lk = 640 / Math.max(480, Math.min(window.innerHeight, 1300));  // même vitesse au doigt sur téléphone et tablette
+        G.yaw -= dx * 0.0042 * lk;
+        G.pitch = Math.max(-1.15, Math.min(1.15, G.pitch - dy * 0.0038 * lk));
+    }
+    ptr.x = e.clientX; ptr.y = e.clientY;
+});
+cv.addEventListener('pointerup', e => {
+    if (!ptr || e.pointerId !== ptr.id) { ptr = null; return; }
+    if (!ptr.moved && G.playing) doTap(e.clientX, e.clientY);
+    ptr = null;
+});
+function doTap(cx, cy) {
+    /* tolérance tactile : on lance 9 rayons (centre + couronne) et on garde le meilleur */
+    const R = Math.max(10, Math.min(window.innerWidth, window.innerHeight) * 0.022);
+    const offs = [[0, 0], [R, 0], [-R, 0], [0, R], [0, -R], [R * 0.7, R * 0.7], [-R * 0.7, R * 0.7], [R * 0.7, -R * 0.7], [-R * 0.7, -R * 0.7]];
+    let best = null;
+    for (const [ox, oy] of offs) {
+        const v = new THREE.Vector2(((cx + ox) / window.innerWidth) * 2 - 1, -((cy + oy) / window.innerHeight) * 2 + 1);
+        ray.setFromCamera(v, camera);
+        const hits = ray.intersectObjects(G.inter, true);
+        if (hits.length && (!best || hits[0].distance < best.distance)) best = hits[0];
+        if (best && ox === 0 && oy === 0) break;   // le centre a touché : priorité absolue
+    }
+    if (!best) return;
+    let o = best.object;
+    while (o && !o.userData.act) o = o.parent;
+    if (o && o.userData.act && best.distance < (o.userData.reach || 4.2)) { sTap(); o.userData.act(o, best); }
+    else if (o && o.userData.act) msg('🚶 Approche-toi un peu !');
+}
+
+/* --- confort tablette Android : plein écran, anti-veille, anti-menu contextuel --- */
+document.addEventListener('contextmenu', e => e.preventDefault());
+const bFull = document.getElementById('bFull');
+function fsOn() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+if (bFull) bFull.addEventListener('click', () => {
+    const el = document.documentElement;
+    if (!fsOn()) { (el.requestFullscreen || el.webkitRequestFullscreen || function () { }).call(el); }
+    else { (document.exitFullscreen || document.webkitExitFullscreen || function () { }).call(document); }
+});
+document.addEventListener('fullscreenchange', () => { if (bFull) bFull.textContent = fsOn() ? '🗗' : '⛶'; });
+let wakeL = null;
+async function keepAwake(on) {
+    try {
+        if (on && 'wakeLock' in navigator) { wakeL = await navigator.wakeLock.request('screen'); }
+        else if (!on && wakeL) { wakeL.release(); wakeL = null; }
+    } catch (e) { }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && G.playing) keepAwake(true); });
+
+/* --- joystick --- */
+const joy = { active: false, vx: 0, vy: 0 };
+(function () {
+    const base = document.getElementById('joy'), knob = document.getElementById('knob');
+    let pid = null;
+    base.addEventListener('pointerdown', e => { pid = e.pointerId; joy.active = true; base.setPointerCapture(pid); mv(e); });
+    base.addEventListener('pointermove', e => { if (e.pointerId === pid) mv(e); });
+    function end(e) { if (e.pointerId !== pid) return; pid = null; joy.active = false; joy.vx = joy.vy = 0; knob.style.left = '50%'; knob.style.top = '50%'; }
+    base.addEventListener('pointerup', end); base.addEventListener('pointercancel', end);
+    function mv(e) {
+        const r = base.getBoundingClientRect();
+        let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+        const m = Math.hypot(dx, dy), max = r.width / 2 - 8;
+        if (m > max) { dx = dx / m * max; dy = dy / m * max; }
+        knob.style.left = 'calc(50% + ' + dx + 'px)'; knob.style.top = 'calc(50% + ' + dy + 'px)';
+        joy.vx = dx / max; joy.vy = dy / max;
+    }
+})();
+
+/* --- boucle --- */
+let lastT = performance.now();
+function loop(now) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(0.05, (now - lastT) / 1000);
+    lastT = now;
+    perfSample(dt);
+    if (!scene || !camera) return;
+    stepAnims(now);
+    if (G.playing && !G.seated && (joy.vx || joy.vy)) {
+        const sp = 2.1 * dt;
+        const f = new THREE.Vector3(-Math.sin(G.yaw), 0, -Math.cos(G.yaw));
+        const r = new THREE.Vector3(-f.z, 0, f.x);
+        const px = G.pos.x, pz = G.pos.z;
+        G.pos.addScaledVector(f, -joy.vy * sp).addScaledVector(r, joy.vx * sp);
+        if (G.zones && G.zones.length) {
+            const inZ = (x, z) => G.zones.some(zn => zn.on && x >= zn.x1 && x <= zn.x2 && z >= zn.z1 && z <= zn.z2);
+            if (!inZ(G.pos.x, G.pos.z)) {
+                if (inZ(G.pos.x, pz)) G.pos.z = pz;          // glisse le long du mur
+                else if (inZ(px, G.pos.z)) G.pos.x = px;
+                else { G.pos.x = px; G.pos.z = pz; }
+            }
+        } else {
+            const b = G.bounds;
+            if (b) { G.pos.x = Math.max(b.x1, Math.min(b.x2, G.pos.x)); G.pos.z = Math.max(b.z1, Math.min(b.z2, G.pos.z)); }
+        }
+    }
+    camera.position.copy(G.pos);
+    camera.rotation.set(0, 0, 0);
+    camera.rotateY(G.yaw);
+    camera.rotateX(G.pitch);
+    if (heldGroup) {
+        const moving = joy.vx || joy.vy;
+        heldBob += dt * (moving ? 7 : 1.6);
+        heldGroup.position.y = -0.3 + Math.sin(heldBob) * (moving ? 0.014 : 0.005);
+        heldGroup.rotation.z = Math.sin(heldBob * 0.5) * 0.04;
+    }
+    G.tickers.forEach(fn => fn(dt, now / 1000));
+    renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+/* --- helpers de construction --- */
+function M(geo, mat, x, y, z, opts) {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.castShadow = true; m.receiveShadow = true;
+    if (opts && opts.ry) m.rotation.y = opts.ry;
+    if (opts && opts.rx) m.rotation.x = opts.rx;
+    if (opts && opts.rz) m.rotation.z = opts.rz;
+    return m;
+}
+const BX = (w, h, d) => new THREE.BoxGeometry(w, h, d);
+/* B() = boîte ARRONDIE par défaut : rayon adaptatif -> tout le mobilier
+   perd ses arêtes vives (design plus doux, plus moderne, plus réaliste).
+   BX() reste disponible pour une boîte parfaitement nette. */
+const B = (w, h, d, r) => RB(w, h, d, r !== undefined ? r : Math.min(0.05, Math.min(w, h, d) * 0.25));
+const std = o => new THREE.MeshStandardMaterial(o);
+/* Boîte ARRONDIE : coins doux + chanfreins lisses (design moderne).
+   Construite via Shape arrondi + extrusion biseautée, mise en cache. */
+const _rbCache = {};
+function RB(w, h, d, r) {
+    r = Math.min(r || 0.03, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001);
+    const key = w.toFixed(3) + '_' + h.toFixed(3) + '_' + d.toFixed(3) + '_' + r.toFixed(3);
+    if (_rbCache[key]) return _rbCache[key];
+    const sh = new THREE.Shape();
+    const x = -w / 2 + r, y = -h / 2 + r, W = w - 2 * r, H = h - 2 * r;
+    sh.moveTo(x, y - r); sh.lineTo(x + W, y - r); sh.quadraticCurveTo(x + W + r, y - r, x + W + r, y);
+    sh.lineTo(x + W + r, y + H); sh.quadraticCurveTo(x + W + r, y + H + r, x + W, y + H + r);
+    sh.lineTo(x, y + H + r); sh.quadraticCurveTo(x - r, y + H + r, x - r, y + H);
+    sh.lineTo(x - r, y); sh.quadraticCurveTo(x - r, y - r, x, y - r);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: Math.max(0.001, d - 2 * r), bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: r, bevelThickness: r, curveSegments: 4 });
+    g.translate(0, 0, -(d - 2 * r) / 2);
+    _rbCache[key] = g;
+    return g;
+}
+function inter(mesh, name, act, reach) {
+    mesh.userData.act = act;
+    mesh.userData.name = name;
+    if (reach) mesh.userData.reach = reach;
+    G.inter.push(mesh);
+    return mesh;
+}
+function makeKey(color) {
+    const g = new THREE.Group();
+    const mat = std({ color: color, metalness: 0.85, roughness: 0.25, emissive: color, emissiveIntensity: 0.12 });
+    g.add(M(new THREE.TorusGeometry(0.035, 0.012, 10, 20), mat, 0, 0, 0));
+    g.add(M(new THREE.CylinderGeometry(0.011, 0.011, 0.12, 8), mat, 0, -0.08, 0));
+    g.add(M(B(0.035, 0.016, 0.012), mat, 0.014, -0.125, 0));
+    return g;
+}
+function room(w, d, h, floorTex, wallTex_, ceilCol) {
+    const g = new THREE.Group();
+    floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(w / 2, d / 2);
+    const fl = M(new THREE.PlaneGeometry(w, d), std({ map: floorTex, roughness: 0.85 }), 0, 0, 0, { rx: -Math.PI / 2 });
+    fl.castShadow = false; g.add(fl);
+    const ce = M(new THREE.PlaneGeometry(w, d), std({ color: ceilCol, roughness: 1 }), 0, h, 0, { rx: Math.PI / 2 });
+    ce.castShadow = false; g.add(ce);
+    wallTex_.wrapS = wallTex_.wrapT = THREE.RepeatWrapping; wallTex_.repeat.set(3, 1.4);
+    const wm = std({ map: wallTex_, roughness: 0.95 });
+    [[0, h / 2, -d / 2, 0, w], [0, h / 2, d / 2, Math.PI, w], [-w / 2, h / 2, 0, Math.PI / 2, d], [w / 2, h / 2, 0, -Math.PI / 2, d]]
+        .forEach(([x, y, z, ry, ww]) => {
+            const p = M(new THREE.PlaneGeometry(ww, h), wm, x, y, z, { ry });
+            p.castShadow = false; g.add(p);
+        });
+    // plinthes
+    const pm = std({ color: 0x3a2412, roughness: 0.7 });
+    [[0, -d / 2 + 0.03, w, 0], [0, d / 2 - 0.03, w, 0], [-w / 2 + 0.03, 0, d, Math.PI / 2], [w / 2 - 0.03, 0, d, Math.PI / 2]]
+        .forEach(([x, z, len, ry]) => g.add(M(B(len, 0.14, 0.05), pm, x, 0.07, z, { ry })));
+    // corniche de plafond (relief réaliste en haut des murs)
+    const cm = std({ color: ceilCol, roughness: 0.9 });
+    [[0, -d / 2 + 0.04, w, 0], [0, d / 2 - 0.04, w, 0], [-w / 2 + 0.04, 0, d, Math.PI / 2], [w / 2 - 0.04, 0, d, Math.PI / 2]]
+        .forEach(([x, z, len, ry]) => { const c = M(B(len, 0.1, 0.07), cm, x, h - 0.05, z, { ry }); c.castShadow = false; g.add(c); });
+    // lumière d'ambiance hémisphérique : dégradés doux, rendu moins plat
+    const hemi = new THREE.HemisphereLight(0xfff2dd, 0x241a10, 0.22);
+    hemi.position.set(0, h, 0); g.add(hemi);
+    return g;
+}
+function makeDoor(x, z, ry, color) {
+    const g = new THREE.Group();
+    g.position.set(x, 0, z); g.rotation.y = ry;
+    const fm = std({ color: 0x2e1c0c, roughness: 0.6 });
+    g.add(M(B(1.14, 2.25, 0.14), fm, 0, 1.12, 0));
+    const pivot = new THREE.Group();
+    pivot.position.set(-0.48, 0, 0.02);
+    const panel = M(B(0.96, 2.1, 0.07), std({ color: color, roughness: 0.55 }), 0.48, 1.08, 0);
+    const handle = M(new THREE.SphereGeometry(0.05, 12, 10), std({ color: 0xd9b24c, metalness: 0.9, roughness: 0.2 }), 0.86, 1.05, 0.07);
+    pivot.add(panel); pivot.add(handle);
+    g.add(pivot);
+    g.userData.pivot = pivot;
+    return g;
+}
+
+/* ============================================================
+   OBJET TENU EN MAIN + MEUBLES À TIROIRS MULTIPLES
+   ============================================================ */
+function removeInter(mesh) {
+    if (!mesh) return;
+    if (mesh.traverse) mesh.traverse(o => { const j = G.inter.indexOf(o); if (j >= 0) G.inter.splice(j, 1); });
+    const k = G.inter.indexOf(mesh); if (k >= 0) G.inter.splice(k, 1);
+}
+function heldKey(gold) {
+    const g = makeKey(gold ? 0xf4c542 : 0xd8dde3); g.scale.setScalar(1.9);
+    g.rotation.set(Math.PI / 2, 0, 0.5); return g;
+}
+function heldTorch() {
+    const g = new THREE.Group();
+    g.add(M(new THREE.CylinderGeometry(0.03, 0.04, 0.2, 12), std({ color: 0x455160, metalness: 0.7 }), 0, 0, 0, { rz: Math.PI / 2 }));
+    g.add(M(new THREE.CylinderGeometry(0.05, 0.045, 0.05, 12), std({ color: 0xffe9a8, emissive: 0xffe9a8, emissiveIntensity: 0.9 }), 0.12, 0, 0, { rz: Math.PI / 2 }));
+    return g;
+}
+function heldScrew() {
+    const g = new THREE.Group();
+    g.add(M(new THREE.CylinderGeometry(0.011, 0.011, 0.18, 8), std({ color: 0xaab2bd, metalness: 0.9 }), 0.06, 0, 0, { rz: Math.PI / 2 }));
+    g.add(M(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 10), std({ color: 0xd0342c }), -0.08, 0, 0, { rz: Math.PI / 2 }));
+    return g;
+}
+function heldPoker() {
+    const g = new THREE.Group();
+    const iron = std({ color: 0x2e3238, metalness: 0.8, roughness: 0.35 });
+    g.add(M(new THREE.CylinderGeometry(0.01, 0.012, 0.34, 8), iron, 0.05, 0, 0, { rz: Math.PI / 2 }));
+    g.add(M(new THREE.CylinderGeometry(0.014, 0.014, 0.06, 8), std({ color: 0x8a6a1d, metalness: 0.9 }), -0.13, 0, 0, { rz: Math.PI / 2 }));
+    g.add(M(new THREE.ConeGeometry(0.012, 0.05, 8), iron, 0.235, 0, 0, { rz: -Math.PI / 2 }));
+    g.add(M(new THREE.ConeGeometry(0.01, 0.045, 8), iron, 0.2, 0.028, 0, { rz: -2.2 }));
+    return g;
+}
+function heldLoupe() {
+    const g = new THREE.Group();
+    g.add(M(new THREE.TorusGeometry(0.06, 0.014, 12, 24), std({ color: 0xd9b24c, metalness: 0.9, roughness: 0.2 }), 0, 0.04, 0));
+    g.add(M(new THREE.CircleGeometry(0.055, 24), new THREE.MeshBasicMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.35 }), 0, 0.04, 0.001));
+    g.add(M(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 8), std({ color: 0x5a3a1a }), 0, -0.07, 0));
+    g.rotation.z = 0.5; return g;
+}
+function emojiSprite(emoji, size, overlay) {
+    const t = cnv(128, 128, (g, w, h) => { g.font = '92px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(emoji, w / 2, h / 2 + 6); });
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: !overlay, depthWrite: false }));
+    sp.scale.setScalar(size || 0.34); return sp;
+}
+function buildHeldModel(item) {
+    switch (item.hand) {
+        case 'keyG': return heldKey(true);
+        case 'keyS': return heldKey(false);
+        case 'torch': return heldTorch();
+        case 'screw': return heldScrew();
+        case 'loupe': return heldLoupe();
+        case 'poker': return heldPoker();
+    }
+    if (item.emoji === '🔑') return heldKey(true);
+    if (item.emoji === '🗝️') return heldKey(false);
+    if (item.emoji === '🔦') return heldTorch();
+    if (item.emoji === '🔧') return heldScrew();
+    if (item.emoji === '🔍') return heldLoupe();
+    return emojiSprite(item.emoji, 0.34, true);
+}
+let heldGroup = null, heldBob = 0;
+function setupHeld() {
+    heldGroup = new THREE.Group();
+    heldGroup.position.set(0.34, -0.3, -0.62);
+    camera.add(heldGroup);
+    const hl = new THREE.PointLight(0xffffff, 0.45, 2.2); hl.position.set(0.3, -0.15, -0.4); camera.add(hl);
+    scene.add(camera);   // indispensable pour que l'objet tenu soit rendu
+    updateHeld();
+}
+function updateHeld() {
+    if (!heldGroup) return;
+    while (heldGroup.children.length) heldGroup.remove(heldGroup.children[0]);
+    const it = G.sel >= 0 ? G.inv[G.sel] : null;
+    if (it) { const m = buildHeldModel(it); if (m) heldGroup.add(m); }
+}
+/* meuble à tiroirs multiples réutilisable */
+function dresserUnit(x, z, ry, cfg) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+    const W = cfg.w || 1.0, H = cfg.h || 0.92, D = cfg.d || 0.5;
+    const wt = cfg.tex || texWood('#6b4a26', '40,20,6');
+    const bodyMat = std({ map: wt, roughness: 0.6 });
+    g.add(M(RB(W, H, D, 0.035), bodyMat, 0, H / 2, 0));
+    g.add(M(RB(W + 0.06, 0.05, D + 0.06, 0.02), bodyMat, 0, H + 0.02, 0));
+    [[-W / 2 + 0.06, -D / 2 + 0.06], [W / 2 - 0.06, -D / 2 + 0.06], [-W / 2 + 0.06, D / 2 - 0.06], [W / 2 - 0.06, D / 2 - 0.06]]
+        .forEach(p => g.add(M(B(0.06, 0.1, 0.06), std({ color: 0x3a2412 }), p[0], 0.05, p[1])));
+    const n = cfg.drawers.length, gap = 0.028;
+    const dh = (H - gap * (n + 1)) / n;
+    cfg.drawers.forEach((dc, i) => {
+        const yy = gap + dh / 2 + i * (dh + gap);
+        const front = new THREE.Group(); front.position.set(0, yy, D / 2);
+        front.add(M(RB(W - 0.08, dh, 0.04, 0.018), std({ map: wt, roughness: 0.5 }), 0, 0, 0));
+        front.add(M(new THREE.TorusGeometry(0.028, 0.008, 8, 16), std({ color: 0xd9b24c, metalness: 0.9, roughness: 0.2 }), 0, 0, 0.03, { rx: Math.PI / 2 }));
+        g.add(front);
+        let open = false, done = false;
+        const wp = new THREE.Vector3(x + Math.sin(ry) * (D * 0.5 + 0.2), yy, z + Math.cos(ry) * (D * 0.5 + 0.2));
+        inter(front.children[0], dc.label || 'tiroir', () => {
+            if (!open && dc.locked && !done) {
+                if (dc.keyId && selId() === dc.keyId) { consume(dc.keyId); sUnlock(); }
+                else { sNo(); msg(dc.lockMsg || '🔒 Ce tiroir est verrouillé.'); return; }
+            }
+            if (!open) {
+                open = true; sTap();
+                tween(480, k => front.position.z = D / 2 + k * 0.32);
+                if (!done) {
+                    done = true;
+                    if (dc.onOpen) setTimeout(() => dc.onOpen(g, front, wp.clone()), 500);
+                    else if (dc.note) setTimeout(() => showNote(dc.note, true), 500);
+                    else if (dc.msg) msg(dc.msg, true);
+                } else if (dc.emptyMsg) msg(dc.emptyMsg);
+            } else {
+                open = false; sTap();
+                tween(380, k => front.position.z = D / 2 + (1 - k) * 0.32);
+            }
+        }, 3.4);
+    });
+    return g;
+}
+/* ramassage générique d'un objet posé dans la scène */
+function spawnItem(pos, builder, id, emoji, name, hand, scale) {
+    const obj = builder();
+    obj.position.copy(pos);
+    if (scale) obj.scale.setScalar(scale);
+    scene.add(obj);
+    let alive = true;
+    G.tickers.push((dt, t) => { if (!alive) return; obj.rotation.y = t * 1.4; obj.position.y = pos.y + Math.sin(t * 2) * 0.02; });
+    inter(obj, name, () => { alive = false; scene.remove(obj); removeInter(obj); addItem(id, emoji, name, hand); });
+    return obj;
+}
+
+/* ============================================================
+   KIT MULTI-PIÈCES + DÉCOR RÉALISTE
+   ============================================================ */
+/* cloison intérieure avec ouverture de porte + encadrement + linteau */
+function innerWall(x, z, ry, len, h, tex, gapAt, gapW) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+    const mat = std({ map: tex, roughness: 0.92 });
+    const th = 0.16, lintelH = 2.06;
+    if (gapW) {
+        const leftLen = len / 2 + gapAt - gapW / 2;
+        const rightLen = len / 2 - gapAt - gapW / 2;
+        if (leftLen > 0.02) g.add(M(B(leftLen, h, th), mat, -len / 2 + leftLen / 2, h / 2, 0));
+        if (rightLen > 0.02) g.add(M(B(rightLen, h, th), mat, len / 2 - rightLen / 2, h / 2, 0));
+        g.add(M(B(gapW + 0.12, h - lintelH, th), mat, gapAt, lintelH + (h - lintelH) / 2, 0));
+        const fm = std({ color: 0x3a2412, roughness: 0.6 });
+        [-1, 1].forEach(s => g.add(M(B(0.09, lintelH + 0.04, th + 0.06), fm, gapAt + s * (gapW / 2 + 0.01), lintelH / 2, 0)));
+        g.add(M(B(gapW + 0.2, 0.09, th + 0.06), fm, gapAt, lintelH + 0.045, 0));
+        // plinthes de part et d'autre de l'ouverture
+        const pm = std({ color: 0x3a2412, roughness: 0.7 });
+        [-1, 1].forEach(side => {
+            if (leftLen > 0.02) g.add(M(B(leftLen, 0.13, 0.04), pm, -len / 2 + leftLen / 2, 0.065, side * (th / 2 + 0.02)));
+            if (rightLen > 0.02) g.add(M(B(rightLen, 0.13, 0.04), pm, len / 2 - rightLen / 2, 0.065, side * (th / 2 + 0.02)));
+        });
+    } else g.add(M(B(len, h, th), mat, 0, h / 2, 0));
+    return g;
+}
+/* porte intérieure : ouvre l'accès à d'autres zones de déplacement */
+function innerDoor(x, z, ry, color, cfg) {
+    cfg = cfg || {};
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+    const pivot = new THREE.Group(); pivot.position.set(-0.47, 0, 0);
+    const pm = std({ color: color, roughness: 0.5 });
+    const panel = M(RB(0.94, 2.0, 0.06, 0.028), pm, 0.47, 1.02, 0);
+    // moulures de panneau (relief réaliste)
+    [[0.5, 0.62, 0.47, 1.45], [0.5, 0.62, 0.47, 0.55]].forEach(([w2, h2, cx, cy]) =>
+        pivot.add(M(B(w2, h2, 0.02), std({ color: color, roughness: 0.42 }), cx, cy, 0.045)));
+    const handle = M(new THREE.SphereGeometry(0.045, 12, 10), std({ color: 0xd9b24c, metalness: 0.9, roughness: 0.2 }), 0.84, 1.0, 0.07);
+    const plate = M(B(0.05, 0.16, 0.015), std({ color: 0xb8933b, metalness: 0.85, roughness: 0.3 }), 0.84, 1.0, 0.035);
+    pivot.add(panel); pivot.add(plate); pivot.add(handle);
+    g.add(pivot);
+    let open = false;
+    const act = () => {
+        if (open) { msg(cfg.openedMsg || '🚪 La porte est déjà ouverte.'); return; }
+        if (cfg.keyId) {
+            if (selId() === cfg.keyId) { consume(cfg.keyId); }
+            else { sNo(); msg(cfg.lockMsg || '🔒 Cette porte est verrouillée à clé.'); return; }
+        }
+        open = true; sUnlock();
+        tween(900, k => pivot.rotation.y = -k * 1.78);
+        (cfg.zones || []).forEach(zn => zn.on = true);
+        if (cfg.openMsg) msg(cfg.openMsg, true);
+        if (cfg.onOpen) cfg.onOpen();
+    };
+    inter(panel, cfg.name || 'porte', act, cfg.reach || 3.2);
+    inter(handle, cfg.name || 'porte', act, cfg.reach || 3.2);
+    g.userData.pivot = pivot;
+    return g;
+}
+/* fenêtre encadrée : cadre, croisillons, vitre nocturne, appui */
+function windowUnit(x, y, z, ry, w, h) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry || 0;
+    const fm = std({ color: 0xf1f0ea, roughness: 0.5 });
+    g.add(M(B(w + 0.16, h + 0.16, 0.07), fm, 0, 0, -0.012));
+    const glass = M(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: texNightWindow() }), 0, 0, 0.028);
+    glass.castShadow = false; g.add(glass);
+    g.add(M(B(0.045, h, 0.05), fm, 0, 0, 0.05));
+    g.add(M(B(w, 0.045, 0.05), fm, 0, 0, 0.05));
+    g.add(M(B(w + 0.3, 0.055, 0.17), fm, 0, -h / 2 - 0.1, 0.05));
+    return g;
+}
+/* suspension : câble, abat-jour, ampoule, lumière */
+function ceilingLamp(x, z, hRoom, shade, color, inten, dist) {
+    const g = new THREE.Group(); g.position.set(x, hRoom, z);
+    g.add(M(new THREE.CylinderGeometry(0.011, 0.011, 0.36, 6), std({ color: 0x24211c }), 0, -0.18, 0));
+    g.add(M(new THREE.ConeGeometry(0.18, 0.15, 18, 1, true), std({ color: shade, roughness: 0.55, side: THREE.DoubleSide }), 0, -0.42, 0));
+    g.add(M(new THREE.SphereGeometry(0.045, 10, 8), std({ color: 0xfff2cf, emissive: 0xffe9a8, emissiveIntensity: 1.1 }), 0, -0.47, 0));
+    const l = new THREE.PointLight(color, inten, dist); l.position.set(0, -0.55, 0); g.add(l);
+    g.userData.light = l;
+    return g;
+}
+/* plante en pot */
+function pottedPlant(x, z, s) {
+    s = s || 1;
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.scale.setScalar(s);
+    g.add(M(new THREE.CylinderGeometry(0.13, 0.1, 0.2, 12), std({ color: 0xb35c2d, roughness: 0.7 }), 0, 0.1, 0));
+    g.add(M(new THREE.CylinderGeometry(0.12, 0.12, 0.03, 12), std({ color: 0x2a1a0c }), 0, 0.2, 0));
+    g.add(M(new THREE.CylinderGeometry(0.018, 0.024, 0.35, 6), std({ color: 0x4a3a1a }), 0, 0.38, 0));
+    [[0, 0.62, 0, 0.17], [0.11, 0.52, 0.05, 0.12], [-0.1, 0.55, -0.06, 0.13], [0.02, 0.5, 0.1, 0.11]]
+        .forEach(([px, py, pz, r]) => g.add(M(new THREE.SphereGeometry(r, 9, 7), std({ color: 0x2f6b35, roughness: 0.85 }), px, py, pz)));
+    return g;
+}
+/* tableau encadré au mur */
+function wallArt(x, y, z, ry, w, h, tex) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry || 0;
+    g.add(M(B(w + 0.1, h + 0.1, 0.035), std({ color: 0x8a6a1d, metalness: 0.55, roughness: 0.35 }), 0, 0, 0));
+    const face = M(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex }), 0, 0, 0.022);
+    face.castShadow = false; g.add(face);
+    return g;
+}
+/* bibliothèque décorative remplie de livres */
+function bookCase(x, z, ry, w, h, tone1) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+    const wood = std({ map: texWood(tone1 || '#5c3a1c', '30,15,4'), roughness: 0.6 });
+    g.add(M(B(w, h, 0.3), wood, 0, h / 2, 0));
+    const cols = ['#8a2f1f', '#1f4a8a', '#2f6b35', '#8a6a1d', '#5c2a6b', '#a34a1a', '#3a6b6b'];
+    const rows = Math.floor((h - 0.25) / 0.34);
+    for (let r2 = 0; r2 < rows; r2++) {
+        const sy = 0.18 + r2 * 0.34;
+        g.add(M(B(w - 0.08, 0.025, 0.26), wood, 0, sy, 0.02));
+        let bx = -w / 2 + 0.09;
+        while (bx < w / 2 - 0.1) {
+            const bw = 0.035 + Math.random() * 0.03, bh = 0.2 + Math.random() * 0.08;
+            g.add(M(B(bw, bh, 0.16), std({ color: cols[(Math.random() * cols.length) | 0], roughness: 0.65 }), bx, sy + bh / 2 + 0.015, 0.04));
+            bx += bw + 0.012;
+        }
+    }
+    return g;
+}
+/* cheminée avec feu qui crépite et inscription gravée */
+function fireplace(x, z, ry, engraving) {
+    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
+    const stone = std({ map: texWall('#6e675e', '30,26,22', 0.25), roughness: 0.95 });
+    g.add(M(B(1.7, 1.28, 0.42), stone, 0, 0.64, 0));
+    g.add(M(B(1.9, 0.12, 0.55), std({ map: texWood('#4a2d13', '20,10,2'), roughness: 0.5 }), 0, 1.32, 0.03));
+    g.add(M(B(0.9, 0.78, 0.3), std({ color: 0x0c0805 }), 0, 0.42, 0.08));
+    // bûches + braises
+    g.add(M(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 8), std({ color: 0x3a2412 }), 0, 0.1, 0.16, { rz: Math.PI / 2 }));
+    g.add(M(new THREE.CylinderGeometry(0.045, 0.045, 0.48, 8), std({ color: 0x2a1a0c }), 0.05, 0.18, 0.14, { rz: Math.PI / 2, ry: 0.3 }));
+    const ember = M(new THREE.SphereGeometry(0.09, 8, 6), std({ color: 0xff5a1f, emissive: 0xff7a2d, emissiveIntensity: 1.3 }), 0, 0.12, 0.16);
+    g.add(ember);
+    const fl = new THREE.PointLight(0xff8a3d, 1.0, 5.5); fl.position.set(0, 0.5, 0.5); g.add(fl);
+    g.userData.ember = ember;
+    G.tickers.push((dt, t) => { fl.intensity = 0.85 + Math.sin(t * 9) * 0.12 + Math.sin(t * 23) * 0.08; ember.material.emissiveIntensity = 1.1 + Math.sin(t * 13) * 0.3; });
+    if (engraving) {
+        const plq = M(new THREE.PlaneGeometry(0.8, 0.2), new THREE.MeshBasicMaterial({
+            map: cnv(256, 64, (c2, w2, h2) => {
+                c2.fillStyle = '#5c564d'; c2.fillRect(0, 0, w2, h2);
+                c2.fillStyle = '#2e2a24'; c2.font = 'bold 38px serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+                c2.fillText(engraving, w2 / 2, h2 / 2 + 2);
+            })
+        }), 0, 1.06, 0.222);
+        plq.castShadow = false; g.add(plq);
+        g.userData.plaque = plq;
+    }
+    return g;
+}
+/* textures industrielles pour le labo */
+function texTiles(base, joint) {
+    return cnv(256, 256, (g, w, h) => {
+        g.fillStyle = joint || '#c9c2b4'; g.fillRect(0, 0, w, h);
+        const t = 32;
+        for (let y = 0; y < h; y += t) for (let x = 0; x < w; x += t) {
+            g.fillStyle = base || '#e8e2d4';
+            g.fillRect(x + 2, y + 2, t - 4, t - 4);
+            g.fillStyle = 'rgba(255,255,255,0.25)';
+            g.fillRect(x + 3, y + 3, t - 6, 4);
+        }
+    });
+}
+function texHazard() {
+    return cnv(128, 128, (g, w, h) => {
+        g.fillStyle = '#e8b400'; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#191510'; g.lineWidth = 0;
+        for (let i = -w; i < w * 2; i += 32) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 16, 0); g.lineTo(i - h + 16, h); g.lineTo(i - h, h); g.fill(); }
+    });
+}
+function texScreenLines(lines, on) {
+    return cnv(256, 160, (g, w, h) => {
+        g.fillStyle = on ? '#04150c' : '#04080c'; g.fillRect(0, 0, w, h);
+        g.strokeStyle = 'rgba(120,255,170,0.12)';
+        for (let y = 8; y < h; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+        if (on) {
+            g.fillStyle = '#7CFC9A'; g.font = 'bold 19px monospace'; g.textAlign = 'left';
+            lines.forEach((ln, i) => g.fillText(ln, 12, 34 + i * 30));
+        } else { g.fillStyle = '#23404a'; g.font = 'bold 22px monospace'; g.textAlign = 'center'; g.fillText('— HORS TENSION —', w / 2, h / 2 + 6); }
+    });
+}
+/* tuyauterie murale */
+function pipeRun(x, y, z, ry, len, r, col) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry || 0;
+    const m2 = std({ color: col || 0x7a838d, metalness: 0.75, roughness: 0.35 });
+    g.add(M(new THREE.CylinderGeometry(r, r, len, 10), m2, 0, 0, 0, { rz: Math.PI / 2 }));
+    [-len / 2, len / 2].forEach(px => g.add(M(new THREE.SphereGeometry(r * 1.25, 10, 8), m2, px, 0, 0)));
+    for (let px = -len / 2 + 0.4; px < len / 2; px += 1.1) g.add(M(new THREE.CylinderGeometry(r * 1.3, r * 1.3, 0.04, 10), std({ color: 0x4a525c, metalness: 0.8, roughness: 0.3 }), px, 0, 0, { rz: Math.PI / 2 }));
+    return g;
+}
+
+/* ============================================================
+   LES SALLES
+   ============================================================ */
+function dust(w, h, d) {
+    const n = 110, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+        pos[i * 3] = (Math.random() - 0.5) * w;
+        pos[i * 3 + 1] = Math.random() * h;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * d;
+    }
+    const ge = new THREE.BufferGeometry();
+    ge.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const pts = new THREE.Points(ge, new THREE.PointsMaterial({ color: 0xfff3d0, size: 0.014, transparent: true, opacity: 0.5 }));
+    G.tickers.push((dt, t) => { pts.rotation.y = t * 0.015; pts.position.y = Math.sin(t * 0.3) * 0.05; });
+    return pts;
+}
+let doorMain = null;      // porte de sortie de la salle courante
+let radioTimer = null;
+
+function buildBureau() {
+    scene.background = new THREE.Color(0x0a0f18);
+    scene.fog = new THREE.Fog(0x0a0f18, 6, 14);
+    scene.add(room(6.2, 4.8, 2.9, texWood('#8a5a2b', '60,30,8'), texWall('#2f4436', '255,255,255', 0.05), 0xEDE3CE));
+    scene.add(new THREE.AmbientLight(0xfff2dc, 0.34));
+    // plafonnier
+    const lampG = new THREE.Group();
+    lampG.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8), std({ color: 0x222 }), 0, 2.65, 0));
+    lampG.add(M(new THREE.SphereGeometry(0.11, 14, 12), std({ color: 0xfff1c8, emissive: 0xffdf9e, emissiveIntensity: 1.4 }), 0, 2.38, 0));
+    scene.add(lampG);
+    const pl = new THREE.PointLight(0xffd9a0, 0.95, 12);
+    pl.position.set(0, 2.35, 0); pl.castShadow = true; pl.shadow.mapSize.set(1024, 1024);
+    scene.add(pl);
+    // fenêtre nuit + rideaux (mur -z)
+    const win = M(new THREE.PlaneGeometry(1.7, 1.25), new THREE.MeshBasicMaterial({ map: texNightWindow() }), -1.5, 1.55, -2.37);
+    win.castShadow = false; scene.add(win);
+    scene.add(M(B(1.86, 1.42, 0.06), std({ color: 0x3a2412 }), -1.5, 1.55, -2.4));
+    scene.add(M(B(0.05, 1.42, 0.02), std({ color: 0x3a2412 }), -1.5, 1.55, -2.36));
+    scene.add(M(B(1.86, 0.05, 0.02), std({ color: 0x3a2412 }), -1.5, 1.55, -2.36));
+    const curM = std({ color: 0x7a1f1f, roughness: 0.9 });
+    scene.add(M(B(0.3, 1.6, 0.08), curM, -2.5, 1.55, -2.34));
+    scene.add(M(B(0.3, 1.6, 0.08), curM, -0.5, 1.55, -2.34));
+    // BUREAU
+    const wood = std({ map: texWood('#5c3a1c', '30,15,4'), roughness: 0.5 });
+    const desk = new THREE.Group(); desk.position.set(1.6, 0, -1.55);
+    desk.add(M(B(1.7, 0.08, 0.85), wood, 0, 0.76, 0));
+    [[-0.78, -0.36], [0.78, -0.36], [-0.78, 0.36], [0.78, 0.36]].forEach(([x, z]) => desk.add(M(B(0.07, 0.76, 0.07), wood, x, 0.38, z)));
+    // lampe banquier (toggle)
+    const bl = new THREE.Group(); bl.position.set(-0.55, 0.8, -0.15);
+    bl.add(M(new THREE.CylinderGeometry(0.07, 0.09, 0.03, 12), std({ color: 0x8c6a1d, metalness: 0.7 }), 0, 0.015, 0));
+    bl.add(M(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 8), std({ color: 0x8c6a1d, metalness: 0.7 }), 0, 0.17, 0));
+    const blHead = M(B(0.28, 0.09, 0.12), std({ color: 0x14532d, emissive: 0x0a2, emissiveIntensity: 0.15 }), 0, 0.34, 0.05);
+    bl.add(blHead);
+    const blLight = new THREE.PointLight(0x9dffb0, 0, 2.2); blLight.position.set(0, 0.28, 0.12); bl.add(blLight);
+    let blOn = false;
+    inter(blHead, 'lampe', () => { blOn = !blOn; blLight.intensity = blOn ? 0.85 : 0; msg(blOn ? '💡 La lampe verte s\'allume.' : '💡 Lampe éteinte.'); });
+    desk.add(bl);
+    // globe qui tourne
+    const glb = new THREE.Group(); glb.position.set(0.55, 0.8, -0.15);
+    glb.add(M(new THREE.CylinderGeometry(0.06, 0.09, 0.05, 12), std({ color: 0x3a2412 }), 0, 0.02, 0));
+    const sphere = M(new THREE.SphereGeometry(0.13, 18, 14), std({ color: 0x2d6fb3, roughness: 0.5 }), 0, 0.2, 0);
+    glb.add(sphere);
+    inter(sphere, 'globe', () => { tween(900, k => sphere.rotation.y = k * Math.PI * 2); msg('🌍 Le globe tourne... le monde est vaste !'); });
+    desk.add(glb);
+    // papiers
+    desk.add(M(B(0.3, 0.008, 0.4), std({ color: 0xf5eeda }), 0, 0.81, 0.2, { ry: 0.2 }));
+    // tiroir verrouillé -> note du code
+    const drawer = M(B(0.52, 0.16, 0.06), std({ map: texWood('#4a2d13', '20,10,2') }), 0, 0.6, 0.44);
+    desk.add(drawer);
+    drawer.userData._open = false;
+    inter(drawer, 'tiroir', d => {
+        if (d.userData._open) { msg('📜 Le tiroir est vide maintenant.'); return; }
+        if (selId() === 'petitecle' ) {
+            consume('petitecle'); d.userData._open = true;
+            sUnlock();
+            tween(600, k => d.position.z = 0.44 + k * 0.28);
+            setTimeout(() => showNote('« CODE DU COFFRE : l\'heure de l\'horloge, le nombre de livres ROUGES, les personnages du tableau. »', true), 650);
+        } else { sNo(); msg('🔒 Le tiroir est fermé... la serrure est minuscule.'); }
+    });
+    scene.add(desk);
+    // chaise
+    const ch = new THREE.Group(); ch.position.set(1.6, 0, -0.7);
+    ch.add(M(B(0.45, 0.05, 0.45), wood, 0, 0.45, 0));
+    ch.add(M(B(0.45, 0.5, 0.05), wood, 0, 0.72, 0.2));
+    [[-0.19, -0.19], [0.19, -0.19], [-0.19, 0.19], [0.19, 0.19]].forEach(([x, z]) => ch.add(M(B(0.05, 0.45, 0.05), wood, x, 0.22, z)));
+    scene.add(ch);
+    // BIBLIOTHÈQUE + livres (3 rouges)
+    const shelf = new THREE.Group(); shelf.position.set(2.93, 0, 0.6); shelf.rotation.y = -Math.PI / 2;
+    shelf.add(M(B(1.7, 2.1, 0.34), std({ map: texWood('#4a2d13', '20,10,2') }), 0, 1.05, 0));
+    const cols = [0xb3312d, 0x2d5b8e, 0xb3312d, 0x3f7a3a, 0xb3312d, 0x8e7a2d, 0x5b2d8e, 0x2d8e86, 0x8e2d6b, 0x666, 0x2d5b8e, 0x3f7a3a];
+    const books = new THREE.Group();
+    cols.forEach((c, i) => {
+        const row = i < 6 ? 0 : 1;
+        books.add(M(B(0.11, 0.34 + (i % 3) * 0.03, 0.22), std({ color: c, roughness: 0.7 }), -0.62 + (i % 6) * 0.25, 1.5 - row * 0.55, 0.08));
+    });
+    shelf.add(books);
+    inter(books, 'livres', () => msg('📚 Tu comptes les livres ROUGES sur l\'étagère... il y en a 3.'));
+    scene.add(shelf);
+    // HORLOGE (9h) + tic-tac
+    const clk = new THREE.Group(); clk.position.set(0.6, 2.0, -2.36);
+    clk.add(M(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 28), std({ color: 0x4a2f10 }), 0, 0, 0, { rx: Math.PI / 2 }));
+    const face = M(new THREE.CircleGeometry(0.28, 28), new THREE.MeshBasicMaterial({ map: texClock(9) }), 0, 0, 0.03);
+    clk.add(face);
+    inter(face, 'horloge', () => msg('🕘 L\'horloge indique 9 heures pile. Tic... tac...'));
+    scene.add(clk);
+    G.clockAcc = 0;
+    G.tickers.push(dt => { G.clockAcc += dt; if (G.clockAcc >= 1) { G.clockAcc -= 1; sTick(); } });
+    // TABLEAU pivotant -> COFFRE
+    const artG = new THREE.Group(); artG.position.set(-0.9, 1.6, 2.36); artG.rotation.y = Math.PI;
+    const artPivot = new THREE.Group(); artPivot.position.set(-0.45, 0, 0);
+    artPivot.add(M(B(0.9, 0.68, 0.05), std({ color: 0x8c6a1d, metalness: 0.5 }), 0.45, 0, 0));
+    const artC = M(new THREE.PlaneGeometry(0.8, 0.58), new THREE.MeshBasicMaterial({ map: texPainting() }), 0.45, 0, 0.03);
+    artPivot.add(artC);
+    artG.add(artPivot);
+    // coffre encastré derrière
+    const safe = new THREE.Group(); safe.position.set(0, 0, -0.1);
+    safe.add(M(RB(0.62, 0.5, 0.16, 0.03), std({ color: 0x22303c, metalness: 0.7, roughness: 0.35 }), 0, 0, 0));
+    const safePivot = new THREE.Group(); safePivot.position.set(-0.27, 0, 0.09);
+    const safeDoor = M(RB(0.52, 0.42, 0.03, 0.014), std({ color: 0x2c3e50, metalness: 0.8, roughness: 0.3 }), 0.26, 0, 0);
+    const padPlate = M(new THREE.PlaneGeometry(0.16, 0.12), std({ color: 0x0c1520, emissive: 0x7CFC9A, emissiveIntensity: 0.5 }), 0.32, 0.05, 0.02);
+    safePivot.add(safeDoor); safePivot.add(padPlate);
+    safe.add(safePivot);
+    safe.visible = false;
+    artG.add(safe);
+    scene.add(artG);
+    let artOpen = false, safeOpen = false;
+    inter(artC, 'tableau', () => {
+        if (!artOpen) {
+            artOpen = true; safe.visible = true;
+            tween(700, k => artPivot.rotation.y = -k * 1.9);
+            msg('🖼️ Le tableau pivote... un COFFRE se cachait derrière ! (2 personnages sur la toile)', true);
+        } else msg('🖼️ Deux personnages se serrent la main sur la toile.');
+    });
+    inter(safeDoor, 'coffre', () => {
+        if (safeOpen) return;
+        openPad('932', () => {
+            safeOpen = true;
+            tween(700, k => safePivot.rotation.y = -k * 1.8);
+            const key = makeKey(0xf4c542); key.scale.setScalar(1.6);
+            key.position.set(-0.9 - 0.0, 1.6, 2.18); key.rotation.x = Math.PI / 2;
+            scene.add(key);
+            inter(key, 'clé dorée', k2 => { scene.remove(key); removeInter(key); addItem('grandecle', '🔑', 'la grande clé dorée', 'keyG'); });
+            msg('🔓 Le coffre s\'ouvre... la grande clé dorée brille à l\'intérieur !', true);
+        });
+    }, 3.4);
+    // TAPIS -> petite clé
+    const rug = M(new THREE.PlaneGeometry(1.5, 1.0), std({ map: texRug('#7a1f1f', '#e8c268'), roughness: 1 }), 0, 0.012, 0.2, { rx: -Math.PI / 2 });
+    rug.castShadow = false;
+    let rugMoved = false;
+    inter(rug, 'tapis', () => {
+        if (rugMoved) { msg('🟥 Plus rien sous le tapis.'); return; }
+        rugMoved = true;
+        tween(700, k => { rug.position.x = -k * 1.1; rug.rotation.z = k * 0.25; });
+        const key = makeKey(0xc9ced6);
+        key.position.set(0.15, 0.05, 0.25); key.rotation.x = Math.PI / 2;
+        scene.add(key);
+        inter(key, 'petite clé', () => { scene.remove(key); removeInter(key); addItem('petitecle', '🗝️', 'la petite clé', 'keyS'); });
+        msg('👀 Une petite clé était cachée sous le tapis !', true);
+    });
+    scene.add(rug);
+    // plante
+    const pot = new THREE.Group(); pot.position.set(-2.55, 0, 1.9);
+    pot.add(M(new THREE.CylinderGeometry(0.16, 0.12, 0.26, 12), std({ color: 0xb35c2d }), 0, 0.13, 0));
+    [0, 0.7, -0.7].forEach(r => pot.add(M(new THREE.ConeGeometry(0.14, 0.5, 8), std({ color: 0x2d6b35 }), Math.sin(r) * 0.07, 0.5, Math.cos(r) * 0.07, { rz: r * 0.3 })));
+    scene.add(pot);
+    // PORTE de sortie (mur +z)
+    doorMain = makeDoor(1.3, 2.38, Math.PI, 0x6b3a1a);
+    scene.add(doorMain);
+    inter(doorMain.userData.pivot.children[0], 'porte', () => {
+        if (has('grandecle')) { victoryDoor(); }
+        else { sNo(); msg('🔒 La porte est fermée à double tour... il faut une grande clé.'); }
+    });
+    scene.add(dust(5.6, 2.6, 4.2));
+
+    // ── décor supplémentaire : guéridon, machine à écrire, dossiers, lampadaire
+    const guer = new THREE.Group(); guer.position.set(2.6, 0, -0.7);
+    const gwood = std({ map: texWood('#5a3a1c', '30,15,4'), roughness: 0.55 });
+    guer.add(M(new THREE.CylinderGeometry(0.34, 0.36, 0.05, 20), gwood, 0, 0.74, 0));
+    guer.add(M(new THREE.CylinderGeometry(0.05, 0.07, 0.72, 12), gwood, 0, 0.37, 0));
+    guer.add(M(new THREE.CylinderGeometry(0.24, 0.26, 0.04, 16), gwood, 0, 0.03, 0));
+    const typw = new THREE.Group(); typw.position.set(0, 0.77, 0);
+    typw.add(M(RB(0.34, 0.1, 0.28, 0.03), std({ color: 0x2b2f36, roughness: 0.45, metalness: 0.3 }), 0, 0.05, 0));
+    typw.add(M(RB(0.3, 0.16, 0.1, 0.035), std({ color: 0x33383f, roughness: 0.4 }), 0, 0.16, -0.09));
+    typw.add(M(B(0.22, 0.005, 0.15), std({ color: 0xf6f1e2 }), 0, 0.24, -0.02, { rx: -0.35 }));
+    for (let r2 = 0; r2 < 3; r2++) for (let c2 = 0; c2 < 8; c2++)
+        typw.add(M(new THREE.CylinderGeometry(0.011, 0.011, 0.012, 8), std({ color: 0xe8e2d0 }), -0.12 + c2 * 0.035, 0.105 + r2 * 0.012, 0.02 + r2 * 0.035));
+    guer.add(typw);
+    inter(typw.children[0], "machine à écrire", () => { sTap(); msg("⌨️ Clac-clac-clac ! Une vieille machine à écrire. Le ruban est encore encré."); }, 3.0);
+    const phone = new THREE.Group(); phone.position.set(0, 0.77, 0.2);
+    phone.add(M(RB(0.2, 0.07, 0.14, 0.03), std({ color: 0x1e2228, roughness: 0.35 }), 0, 0.035, 0));
+    phone.add(M(RB(0.22, 0.05, 0.05, 0.024), std({ color: 0x14181d, roughness: 0.3 }), 0, 0.095, 0));
+    phone.add(M(new THREE.TorusGeometry(0.05, 0.008, 8, 18), std({ color: 0xd9b24c, metalness: 0.85, roughness: 0.25 }), 0, 0.04, 0.075, { rx: Math.PI / 2 }));
+    guer.add(phone);
+    inter(phone.children[1], "téléphone rétro", () => { sTick(); msg("☎️ Driiing ! Personne au bout du fil... juste un grésillement mystérieux."); }, 3.0);
+    scene.add(guer);
+    const files = new THREE.Group(); files.position.set(-2.7, 0, 1.45);
+    [[0, 0.03, 0x9c7b46], [0.02, 0.09, 0xc0a06a], [-0.02, 0.15, 0x8a6a3d], [0.01, 0.21, 0xb08f5c]].forEach(([ox, oy, cc]) =>
+        files.add(M(RB(0.3, 0.055, 0.22, 0.012), std({ color: cc, roughness: 0.85 }), ox, oy, 0, { ry: ox * 4 })));
+    scene.add(files);
+    inter(files.children[3], "pile de dossiers", () => { sTap(); msg("📚 Des dossiers poussiéreux : « Affaire classée », « Ne pas ouvrir »... rien d\'utile."); }, 3.2);
+    const bin = new THREE.Group(); bin.position.set(-2.55, 0, -0.9);
+    bin.add(M(new THREE.CylinderGeometry(0.15, 0.12, 0.32, 14, 1, true), std({ color: 0x4a5058, metalness: 0.6, roughness: 0.45, side: THREE.DoubleSide }), 0, 0.16, 0));
+    bin.add(M(new THREE.CylinderGeometry(0.121, 0.121, 0.01, 14), std({ color: 0x3a4048 }), 0, 0.005, 0));
+    [[0.03, 0.3, 0.02], [-0.04, 0.33, -0.03]].forEach(([px, py, pz]) =>
+        bin.add(M(new THREE.SphereGeometry(0.055, 8, 6), std({ color: 0xf2ecda, roughness: 0.95 }), px, py, pz)));
+    scene.add(bin);
+    inter(bin.children[2], "corbeille à papier", () => { sTap(); msg("🗑️ Des boulettes de papier froissé. Quelqu\'un cherchait ses mots..."); }, 3.0);
+    const lamp = new THREE.Group(); lamp.position.set(2.55, 0, 1.95);
+    lamp.add(M(new THREE.CylinderGeometry(0.16, 0.18, 0.03, 16), std({ color: 0x2b2f36, metalness: 0.6, roughness: 0.4 }), 0, 0.015, 0));
+    lamp.add(M(new THREE.CylinderGeometry(0.022, 0.022, 1.5, 10), std({ color: 0x3a4048, metalness: 0.7, roughness: 0.3 }), 0, 0.76, 0));
+    const shade = M(new THREE.CylinderGeometry(0.2, 0.26, 0.26, 18, 1, true), std({ color: 0xf3e2b8, emissive: 0xffd9a0, emissiveIntensity: 0.45, roughness: 0.8, side: THREE.DoubleSide }), 0, 1.62, 0);
+    shade.castShadow = false; lamp.add(shade);
+    const lampL = new THREE.PointLight(0xffd9a8, 0.55, 3.6); lampL.position.set(0, 1.5, 0); lamp.add(lampL);
+    scene.add(lamp);
+    inter(shade, "lampadaire", () => { sTick(); msg("💡 Une chaude lumière dorée. Le halo réchauffe le coin lecture."); }, 3.0);
+    scene.add(wallArt(-3.06, 1.55, 0.9, Math.PI / 2, 0.42, 0.52, cnv(128, 160, (g2, w2, h2) => {
+        g2.fillStyle = '#e8dcc2'; g2.fillRect(0, 0, w2, h2);
+        g2.fillStyle = '#7a5c3a'; g2.fillRect(10, 10, w2 - 20, h2 - 20);
+        g2.fillStyle = '#c9dced'; g2.fillRect(18, 18, w2 - 36, h2 - 36);
+        g2.fillStyle = '#4a6b8a'; g2.beginPath(); g2.arc(w2 / 2, h2 * 0.42, 22, 0, 7); g2.fill();
+        g2.fillRect(w2 / 2 - 26, h2 * 0.56, 52, 46);
+    })));
+
+    G.pos.set(-0.4, 1.5, 1.0); G.yaw = Math.PI * 0.95; G.pitch = 0;
+    G.bounds = { x1: -2.4, x2: 2.2, z1: -1.3, z2: 1.8 };
+}
+
+function buildChambre() {
+    scene.background = new THREE.Color(0x141020);
+    scene.fog = new THREE.Fog(0x141020, 6, 14);
+    scene.add(room(5.6, 4.6, 2.7, texWood('#caa06a', '90,60,25'), texWall('#f2dbe6', '255,255,255', 0.2), 0xfdf6ee));
+    scene.add(new THREE.AmbientLight(0xfff2ea, 0.36));
+    const pl = new THREE.PointLight(0xffe1c9, 0.85, 11);
+    pl.position.set(0, 2.3, 0); pl.castShadow = true; pl.shadow.mapSize.set(1024, 1024);
+    scene.add(pl);
+    // fenêtre lune
+    const win = M(new THREE.PlaneGeometry(1.5, 1.1), new THREE.MeshBasicMaterial({ map: texNightWindow() }), 1.4, 1.55, -2.27);
+    win.castShadow = false; scene.add(win);
+    scene.add(M(B(1.66, 1.26, 0.06), std({ color: 0xffffff }), 1.4, 1.55, -2.3));
+    // LIT + oreiller -> clé argentée
+    const bed = new THREE.Group(); bed.position.set(-1.7, 0, -1.4);
+    bed.add(M(B(1.3, 0.28, 2.1), std({ map: texWood('#8a5a2b', '60,30,8') }), 0, 0.2, 0));
+    bed.add(M(B(1.24, 0.16, 2.0), std({ color: 0x6fa8dc, roughness: 0.95 }), 0, 0.42, 0.03));
+    bed.add(M(B(1.3, 0.6, 0.08), std({ map: texWood('#8a5a2b', '60,30,8') }), 0, 0.4, -1.05));
+    const pillow = M(B(0.7, 0.14, 0.4), std({ color: 0xffffff, roughness: 1 }), 0, 0.55, -0.7);
+    bed.add(pillow);
+    let pOn = false;
+    inter(pillow, 'oreiller', () => {
+        if (pOn) { msg('🛏️ Rien d\'autre sous l\'oreiller.'); return; }
+        pOn = true;
+        tween(500, k => { pillow.position.z = -0.7 + k * 0.4; pillow.rotation.x = k * 0.5; });
+        const key = makeKey(0xc9ced6);
+        key.position.set(-1.7, 0.55, -2.05); key.rotation.x = Math.PI / 2;
+        scene.add(key);
+        inter(key, 'clé argentée', () => { scene.remove(key); removeInter(key); addItem('clearg', '🗝️', 'la clé argentée', 'keyS'); });
+        msg('👀 Une clé argentée dormait sous l\'oreiller !', true);
+    });
+    scene.add(bed);
+    // zone sous le lit (sombre) -> coffre à jouets
+    const under = M(B(1.3, 0.18, 2.1), std({ color: 0x0a0a12, transparent: true, opacity: 0.94 }), -1.7, 0.09, -1.4);
+    let chestOut = false;
+    inter(under, 'sous le lit', () => {
+        if (chestOut) return;
+        if (selId() === 'torche') {
+            chestOut = true;
+            sUnlock();
+            const chest = new THREE.Group(); chest.position.set(-1.7, 0, -0.2);
+            chest.add(M(B(0.6, 0.34, 0.4), std({ map: texWood('#5c3a1c', '30,15,4') }), 0, 0.17, 0));
+            const lid = new THREE.Group(); lid.position.set(0, 0.34, -0.2);
+            lid.add(M(B(0.6, 0.07, 0.4), std({ map: texWood('#5c3a1c', '30,15,4') }), 0, 0.035, 0.2));
+            chest.add(lid);
+            scene.add(chest);
+            tween(700, k => chest.position.z = -0.2 + k * 0.75);
+            msg('🔦 La lumière révèle un coffre à jouets ! Tu le tires vers toi...', true);
+            let lidOpen = false;
+            inter(lid.children[0], 'coffre à jouets', () => {
+                if (lidOpen) return;
+                lidOpen = true;
+                tween(600, k => lid.rotation.x = -k * 1.7);
+                const key = makeKey(0xf4c542); key.scale.setScalar(1.4);
+                key.position.set(-1.7, 0.4, 0.55); key.rotation.x = Math.PI / 2;
+                scene.add(key);
+                inter(key, 'clé dorée', () => { scene.remove(key); removeInter(key); addItem('cledor', '🔑', 'la clé dorée', 'keyG'); });
+                msg('🧸 Entre les jouets... la clé dorée de la porte !', true);
+            });
+        } else { sNo(); msg('🌑 Il fait tout noir sous le lit... il faudrait une lumière.'); }
+    });
+    scene.add(under);
+    // ARMOIRE à double porte (clé argentée) -> torche
+    const ward = new THREE.Group(); ward.position.set(2.45, 0, -0.6); ward.rotation.y = -Math.PI / 2;
+    ward.add(M(B(1.4, 2.1, 0.6), std({ map: texWood('#8a5a2b', '60,30,8') }), 0, 1.05, 0));
+    const dl = new THREE.Group(); dl.position.set(-0.7, 1.05, 0.31);
+    const dlp = M(B(0.68, 2.0, 0.05), std({ map: texWood('#a06a35', '60,30,8') }), 0.34, 0, 0);
+    dl.add(dlp);
+    const dr = new THREE.Group(); dr.position.set(0.7, 1.05, 0.31);
+    const drp = M(B(0.68, 2.0, 0.05), std({ map: texWood('#a06a35', '60,30,8') }), -0.34, 0, 0);
+    dr.add(drp);
+    ward.add(dl); ward.add(dr);
+    let wOpen = false;
+    const openWard = () => {
+        if (wOpen) { msg('👕 Des vêtements bien pliés... et c\'est tout.'); return; }
+        if (has('clearg')) {
+            consume('clearg'); wOpen = true; sUnlock();
+            tween(700, k => { dl.rotation.y = -k * 1.7; dr.rotation.y = k * 1.7; });
+            const torch = new THREE.Group(); torch.position.set(2.35, 1.0, -0.6); torch.rotation.z = Math.PI / 2;
+            torch.add(M(new THREE.CylinderGeometry(0.035, 0.045, 0.24, 10), std({ color: 0x555c66, metalness: 0.7 }), 0, 0, 0));
+            torch.add(M(new THREE.CylinderGeometry(0.055, 0.05, 0.06, 10), std({ color: 0xffe9a8, emissive: 0xffe9a8, emissiveIntensity: 0.6 }), 0, 0.14, 0));
+            scene.add(torch);
+            inter(torch, 'lampe torche', () => { scene.remove(torch); removeInter(torch); addItem('torche', '🔦', 'la lampe torche', 'torch'); });
+            // étagères déco
+            ward.add(M(B(1.2, 0.05, 0.5), std({ color: 0x6b4a26 }), 0, 1.5, 0));
+            msg('🚪 L\'armoire s\'ouvre... une lampe torche est posée là !', true);
+        } else { sNo(); msg('🔒 L\'armoire est fermée à clé. Une PETITE clé argentée...'); }
+    };
+    inter(dlp, 'armoire', openWard); inter(drp, 'armoire', openWard);
+    scene.add(ward);
+    // commode + boîte à musique + veilleuse
+    const dresser = new THREE.Group(); dresser.position.set(0.8, 0, -2.05);
+    dresser.add(M(B(1.1, 0.8, 0.45), std({ map: texWood('#caa06a', '90,60,25') }), 0, 0.4, 0));
+    const mbox = new THREE.Group(); mbox.position.set(-0.3, 0.86, 0);
+    mbox.add(M(B(0.22, 0.12, 0.16), std({ color: 0xb3487a, roughness: 0.4 }), 0, 0.06, 0));
+    const crank = M(new THREE.CylinderGeometry(0.012, 0.012, 0.09, 8), std({ color: 0xd9b24c, metalness: 0.9 }), 0.13, 0.08, 0, { rz: Math.PI / 2 });
+    mbox.add(crank);
+    inter(mbox.children[0], 'boîte à musique', () => { melody(); tween(1400, k => crank.rotation.x = k * Math.PI * 4); msg('🎵 La boîte à musique joue une douce mélodie...'); });
+    dresser.add(mbox);
+    const night = M(new THREE.SphereGeometry(0.09, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), std({ color: 0xffd1e0, emissive: 0xff9ec4, emissiveIntensity: 0.8 }), 0.3, 0.86, 0);
+    const nLight = new THREE.PointLight(0xff9ec4, 0.5, 4); nLight.position.set(0.3, 1.0, 0); dresser.add(nLight);
+    const nCols = [0xff9ec4, 0x9ec9ff, 0xa8ffb0, 0xffe9a8];
+    let nIdx = 0;
+    inter(night, 'veilleuse', () => {
+        nIdx = (nIdx + 1) % nCols.length;
+        nLight.color.setHex(nCols[nIdx]);
+        night.material.emissive.setHex(nCols[nIdx]);
+        msg('🌈 La veilleuse change de couleur !');
+    });
+    dresser.add(night);
+    scene.add(dresser);
+    // guirlande lumineuse clignotante
+    const garland = new THREE.Group();
+    for (let i = 0; i < 9; i++) {
+        const b = M(new THREE.SphereGeometry(0.03, 8, 8), std({ color: 0xffffff, emissive: nCols[i % 4], emissiveIntensity: 1 }),
+            -2.2 + i * 0.55, 2.25 + Math.sin(i * 1.1) * 0.12, -2.24);
+        garland.add(b);
+    }
+    scene.add(garland);
+    G.tickers.push((dt, t) => garland.children.forEach((b, i) => b.material.emissiveIntensity = 0.5 + 0.5 * Math.sin(t * 3 + i)));
+    // tapis étoiles + posters
+    const rug = M(new THREE.PlaneGeometry(1.6, 1.2), std({ map: texRug('#3d6dd8', '#ffe9a8', true), roughness: 1 }), 0.2, 0.012, 0.3, { rx: -Math.PI / 2 });
+    rug.castShadow = false; scene.add(rug);
+    scene.add(M(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ map: texPoster('🦁', '#3d6dd8') }), -2.77, 1.6, 0.4, { ry: Math.PI / 2 }));
+    scene.add(M(new THREE.PlaneGeometry(0.6, 0.8), new THREE.MeshBasicMaterial({ map: texPoster('🚀', '#7a3dd8') }), -0.4, 1.7, -2.27));
+    // PORTE
+    doorMain = makeDoor(1.1, 2.28, Math.PI, 0xd8a0b8);
+    scene.add(doorMain);
+    inter(doorMain.userData.pivot.children[0], 'porte', () => {
+        if (has('cledor')) victoryDoor();
+        else { sNo(); msg('🔒 La porte est fermée... une clé DORÉE l\'ouvrirait.'); }
+    });
+    scene.add(dust(5.2, 2.4, 4.0));
+
+    // ── décor supplémentaire : peluche, petites voitures, dessins, mobile
+    const bear = new THREE.Group(); bear.position.set(-2.35, 0, 1.85);
+    const fur = std({ color: 0xb5854f, roughness: 0.95 });
+    bear.add(M(new THREE.SphereGeometry(0.15, 12, 10), fur, 0, 0.17, 0));
+    bear.add(M(new THREE.SphereGeometry(0.11, 12, 10), fur, 0, 0.38, 0.01));
+    [[-0.08, 0.46], [0.08, 0.46]].forEach(([px, py]) => bear.add(M(new THREE.SphereGeometry(0.045, 10, 8), fur, px, py, 0)));
+    [[-0.17, 0.22], [0.17, 0.22]].forEach(([px, py]) => bear.add(M(new THREE.SphereGeometry(0.06, 10, 8), fur, px, py, 0.02)));
+    [[-0.08, 0.05], [0.08, 0.05]].forEach(([px, py]) => bear.add(M(new THREE.SphereGeometry(0.07, 10, 8), fur, px, py, 0.06)));
+    bear.add(M(new THREE.SphereGeometry(0.045, 10, 8), std({ color: 0xe8d5b8, roughness: 0.9 }), 0, 0.35, 0.09));
+    [[-0.04, 0.4], [0.04, 0.4]].forEach(([px, py]) => bear.add(M(new THREE.SphereGeometry(0.014, 8, 6), std({ color: 0x1a1410 }), px, py, 0.1)));
+    scene.add(bear);
+    inter(bear.children[1], "ours en peluche", () => { sTap(); msg("🧸 Un vieux nounours tout doux. Il a l\'air de garder un secret... mais il ne parle pas."); }, 3.0);
+    const cars = new THREE.Group(); cars.position.set(0.95, 0, 1.85);
+    [[-0.22, 0xd94f3d], [0, 0x3d7fd9], [0.22, 0xf0c419]].forEach(([px, cc], i) => {
+        const c3 = new THREE.Group(); c3.position.set(px, 0, i * 0.06); c3.rotation.y = i * 0.5 - 0.4;
+        c3.add(M(RB(0.17, 0.055, 0.09, 0.022), std({ color: cc, roughness: 0.35, metalness: 0.25 }), 0, 0.055, 0));
+        c3.add(M(RB(0.09, 0.045, 0.08, 0.02), std({ color: 0xdfe8ef, roughness: 0.2, metalness: 0.3 }), -0.01, 0.1, 0));
+        [[-0.055, -0.045], [0.055, -0.045], [-0.055, 0.045], [0.055, 0.045]].forEach(([wx, wz]) =>
+            c3.add(M(new THREE.CylinderGeometry(0.025, 0.025, 0.018, 10), std({ color: 0x22262b }), wx, 0.026, wz, { rz: Math.PI / 2 })));
+        cars.add(c3);
+    });
+    scene.add(cars);
+    inter(cars.children[1].children[0], "petites voitures", () => { sTap(); msg("🚗 Vroum vroum ! Trois petites voitures alignées pour la course."); }, 3.0);
+    scene.add(wallArt(2.76, 1.45, -0.5, -Math.PI / 2, 0.5, 0.4, cnv(160, 128, (g2, w2, h2) => {
+        g2.fillStyle = '#fffdf5'; g2.fillRect(0, 0, w2, h2);
+        g2.strokeStyle = '#f2a03d'; g2.lineWidth = 4; g2.beginPath(); g2.arc(30, 28, 14, 0, 7); g2.stroke();
+        for (let a2 = 0; a2 < 8; a2++) { const an = a2 * Math.PI / 4; g2.beginPath(); g2.moveTo(30 + Math.cos(an) * 18, 28 + Math.sin(an) * 18); g2.lineTo(30 + Math.cos(an) * 25, 28 + Math.sin(an) * 25); g2.stroke(); }
+        g2.strokeStyle = '#4a7fd9'; g2.strokeRect(60, 55, 60, 50);
+        g2.beginPath(); g2.moveTo(56, 55); g2.lineTo(90, 26); g2.lineTo(124, 55); g2.stroke();
+        g2.strokeStyle = '#57a84a'; g2.beginPath(); g2.moveTo(6, 118); g2.lineTo(154, 118); g2.stroke();
+        g2.strokeStyle = '#d95f8a'; g2.beginPath(); g2.arc(140, 40, 9, 0, 7); g2.stroke();
+    })));
+    const mobile = new THREE.Group(); mobile.position.set(1.5, 2.28, -1.4);
+    mobile.add(M(new THREE.CylinderGeometry(0.006, 0.006, 0.22, 6), std({ color: 0x8a7a5a }), 0, 0.11, 0));
+    mobile.add(M(new THREE.TorusGeometry(0.16, 0.008, 6, 18), std({ color: 0x8a7a5a, roughness: 0.7 }), 0, 0, 0, { rx: Math.PI / 2 }));
+    [[0, 0.16, 0xffd23b, '⭐'], [0.16, 0, 0x8ac6f0, '🌙'], [0, -0.16, 0xf08ac6, '⭐'], [-0.16, 0, 0xa8e08a, '☁️']].forEach(([px, pz, cc]) => {
+        mobile.add(M(new THREE.CylinderGeometry(0.003, 0.003, 0.16, 5), std({ color: 0xbdb08e }), px, -0.08, pz));
+        mobile.add(M(new THREE.OctahedronGeometry(0.045), std({ color: cc, emissive: cc, emissiveIntensity: 0.25, roughness: 0.5 }), px, -0.18, pz));
+    });
+    scene.add(mobile);
+    G.tickers.push((dt, t) => { mobile.rotation.y = t * 0.35; });
+    inter(mobile.children[1], "mobile aux étoiles", () => { sTick(); msg("✨ Le mobile tourne doucement : étoiles, lune et nuages dansent au plafond."); }, 3.4);
+    const slip = new THREE.Group(); slip.position.set(-0.55, 0, 1.95);
+    [[-0.08, -0.15], [0.08, 0.1]].forEach(([px, rz]) => {
+        const sl = new THREE.Group(); sl.position.set(px, 0, 0); sl.rotation.y = rz;
+        sl.add(M(RB(0.1, 0.05, 0.22, 0.03), std({ color: 0xf0a8c0, roughness: 0.95 }), 0, 0.025, 0));
+        sl.add(M(RB(0.1, 0.07, 0.08, 0.035), std({ color: 0xf7c4d6, roughness: 0.95 }), 0, 0.055, -0.06));
+        slip.add(sl);
+    });
+    scene.add(slip);
+    inter(slip.children[0].children[0], "chaussons", () => { sTap(); msg("🥿 Deux petits chaussons bien rangés. Prêts pour le réveil !"); }, 2.8);
+    const rug2 = M(new THREE.CircleGeometry(0.62, 28), std({ color: 0xf3d7e2, roughness: 0.98 }), 1.35, 0.012, 0.45, { rx: -Math.PI / 2 });
+    rug2.receiveShadow = true; scene.add(rug2);
+    scene.add(M(new THREE.RingGeometry(0.4, 0.46, 28), std({ color: 0xd9a8c0, roughness: 0.98, side: THREE.DoubleSide }), 1.35, 0.014, 0.45, { rx: -Math.PI / 2 }));
+
+    G.pos.set(0.2, 1.42, 1.2); G.yaw = Math.PI; G.pitch = 0;
+    G.bounds = { x1: -2.2, x2: 2.0, z1: -1.2, z2: 1.7 };
+}
+
+function buildVoiture() {
+    scene.background = new THREE.Color(0x05070d);
+    scene.fog = null;
+    scene.add(new THREE.AmbientLight(0xbfd0ff, 0.22));
+    const street = new THREE.PointLight(0xffe9a8, 1.1, 9);
+    street.position.set(-2.4, 2.4, -1.6);
+    scene.add(street);
+    const dome = new THREE.PointLight(0xfff2dc, 0.35, 3.5);
+    dome.position.set(0, 1.45, -0.1);
+    scene.add(dome);
+    const dark = std({ color: 0x1b2027, roughness: 0.85 });
+    const dark2 = std({ color: 0x272e38, roughness: 0.7 });
+    // habitacle
+    scene.add(M(B(2.1, 0.1, 2.6), dark, 0, 0.32, 0));                       // plancher
+    scene.add(M(B(2.1, 0.08, 2.7), dark, 0, 1.62, -0.1));                   // toit
+    const dash = new THREE.Group(); dash.position.set(0, 0, -0.95);
+    dash.add(M(B(2.05, 0.34, 0.5), dark2, 0, 0.92, 0));
+    dash.add(M(B(2.05, 0.1, 0.62), std({ color: 0x171c23, roughness: 0.6 }), 0, 1.12, -0.02));
+    scene.add(dash);
+    // montants + portières
+    scene.add(M(B(0.09, 1.3, 2.5), dark2, 1.02, 0.95, -0.05));
+    const doorL = new THREE.Group(); doorL.position.set(-1.02, 0, -1.15);   // pivot avant
+    const doorPanel = M(B(0.09, 1.3, 1.5), dark2, 0, 0.95, 0.75);
+    doorL.add(doorPanel);
+    scene.add(doorL);
+    // garniture intérieure de portière + vis
+    const trim = M(B(0.05, 0.7, 1.1), std({ color: 0x39424e, roughness: 0.6 }), 0.07, 0.85, 0.75);
+    doorL.add(trim);
+    const screwM = std({ color: 0xaab2bd, metalness: 0.9, roughness: 0.3 });
+    const s1 = M(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 8), screwM, 0.1, 1.12, 0.3, { rz: Math.PI / 2 });
+    const s2 = M(new THREE.CylinderGeometry(0.02, 0.02, 0.03, 8), screwM, 0.1, 0.6, 1.2, { rz: Math.PI / 2 });
+    doorL.add(s1); doorL.add(s2);
+    let panelOff = false, btnShown = false;
+    const tryPanel = () => {
+        if (panelOff) return;
+        if (selId() === 'tourn') {
+            panelOff = true; sUnlock();
+            tween(500, k => { s1.position.x = 0.1 + k * 0.12; s1.rotation.x = k * 9; });
+            tween(500, k => { s2.position.x = 0.1 + k * 0.12; s2.rotation.x = k * 9; });
+            tween(900, k => { trim.position.y = 0.85 - k * 0.55; trim.rotation.z = k * 0.9; trim.material.opacity = 1; }, () => {
+                btnShown = true;
+                const btn = M(new THREE.SphereGeometry(0.045, 12, 10), std({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 0.8 }), 0.06, 0.95, 0.75);
+                doorL.add(btn);
+                inter(btn, 'bouton rouge', () => {
+                    sUnlock();
+                    msg('🔓 CLIC ! La sécurité enfant se désactive... la portière s\'ouvre !', true);
+                    tween(1200, k => doorL.rotation.y = k * 1.15);
+                    street.intensity = 1.1 + 0;
+                    tween(1200, k => street.intensity = 1.1 + k * 1.2);
+                    setTimeout(victory, 1300);
+                });
+                msg('🔴 Un bouton rouge se cachait derrière la garniture !', true);
+            });
+            msg('🔧 Tu dévisses les deux vis... la garniture tombe !', true);
+        } else { sNo(); msg('🔩 Deux vis tiennent la garniture de la portière... il faudrait un outil.'); }
+    };
+    inter(trim, 'garniture de portière', tryPanel);
+    inter(doorPanel, 'portière', () => {
+        if (!panelOff) { sNo(); msg('🔒 Poignée bloquée : SÉCURITÉ ENFANT ! Regarde la garniture, ces vis...'); }
+        else if (!btnShown) msg('🔩 La garniture est tombée, cherche le mécanisme !');
+    });
+    // sièges + banquette
+    function seat(x) {
+        const s = new THREE.Group(); s.position.set(x, 0, 0.1);
+        s.add(M(B(0.6, 0.14, 0.6), std({ color: 0x4a3421, roughness: 0.9 }), 0, 0.55, 0));
+        s.add(M(B(0.6, 0.7, 0.14), std({ color: 0x4a3421, roughness: 0.9 }), 0, 0.95, 0.32));
+        s.add(M(B(0.5, 0.16, 0.1), std({ color: 0x3a2817, roughness: 0.9 }), 0, 1.36, 0.32));
+        return s;
+    }
+    scene.add(seat(-0.48)); scene.add(seat(0.48));
+    scene.add(M(B(1.9, 0.7, 0.16), std({ color: 0x4a3421 }), 0, 0.85, 1.28));
+    scene.add(M(B(1.9, 0.16, 0.6), std({ color: 0x4a3421 }), 0, 0.55, 1.0));
+    // volant + klaxon + compteurs
+    const wheel = new THREE.Group(); wheel.position.set(-0.48, 1.02, -0.62); wheel.rotation.x = -0.5;
+    const wm = std({ color: 0x14181d, roughness: 0.5 });
+    wheel.add(M(new THREE.TorusGeometry(0.19, 0.028, 10, 26), wm, 0, 0, 0));
+    [0, 2.1, -2.1].forEach(a => wheel.add(M(B(0.03, 0.17, 0.02), wm, Math.sin(a) * 0.09, Math.cos(a) * 0.09, 0, { rz: -a })));
+    const horn = M(new THREE.CylinderGeometry(0.055, 0.055, 0.03, 14), std({ color: 0x22282f }), 0, 0, 0.01, { rx: Math.PI / 2 });
+    wheel.add(horn);
+    inter(horn, 'klaxon', () => { sHonk(); msg('📣 TUUUT TUUUT !!'); });
+    inter(wheel.children[0], 'volant', () => { tween(800, k => wheel.rotation.z = Math.sin(k * Math.PI) * 0.7); msg('🚗 Tu tournes le volant... vroum vroum ! (à l\'arrêt)'); });
+    scene.add(wheel);
+    const dialT = texDial();
+    [[-0.6, 0], [-0.36, 0]].forEach(([x]) => {
+        const d = M(new THREE.PlaneGeometry(0.17, 0.17), new THREE.MeshBasicMaterial({ map: dialT, transparent: true }), x, 1.14, -0.69);
+        d.rotation.x = -0.28; scene.add(d);
+    });
+    // radio + LED + console
+    const radio = M(B(0.3, 0.12, 0.06), std({ color: 0x10151b, roughness: 0.4 }), 0, 1.02, -0.68);
+    const led = M(new THREE.SphereGeometry(0.014, 8, 8), std({ color: 0x7CFC9A, emissive: 0x7CFC9A, emissiveIntensity: 1 }), 0.1, 1.02, -0.64);
+    scene.add(radio); scene.add(led);
+    G.tickers.push((dt, t) => led.material.emissiveIntensity = 0.4 + 0.6 * (Math.sin(t * 5) > 0 ? 1 : 0.2));
+    let radioOn = false;
+    inter(radio, 'autoradio', () => {
+        radioOn = !radioOn;
+        if (radioOn) { melody(); radioTimer = setInterval(melody, 2200); msg('📻 L\'autoradio grésille... puis joue une chanson !'); }
+        else { clearInterval(radioTimer); radioTimer = null; msg('📻 Radio éteinte.'); }
+    });
+    scene.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), std({ color: 0x14181d }), 0, 0.72, -0.35, { rx: 0.5 }));
+    scene.add(M(new THREE.SphereGeometry(0.045, 10, 8), std({ color: 0x2c3440 }), 0, 0.83, -0.3));
+    // plafonnier toggle
+    const domeBtn = M(B(0.14, 0.03, 0.1), std({ color: 0xfff2dc, emissive: 0xfff2dc, emissiveIntensity: 0.6 }), 0, 1.57, -0.15);
+    scene.add(domeBtn);
+    inter(domeBtn, 'plafonnier', () => { dome.intensity = dome.intensity > 0 ? 0 : 0.5; domeBtn.material.emissiveIntensity = dome.intensity > 0 ? 0.6 : 0.05; msg(dome.intensity > 0 ? '💡 Plafonnier allumé.' : '💡 Plafonnier éteint.'); });
+    // rétroviseur
+    scene.add(M(B(0.26, 0.09, 0.03), std({ color: 0x8fa3b8, metalness: 0.95, roughness: 0.08 }), 0, 1.42, -0.86));
+    // PARE-SOLEIL -> petite clé qui tombe
+    const visor = new THREE.Group(); visor.position.set(-0.48, 1.55, -0.82);
+    const visorP = M(B(0.42, 0.02, 0.2), std({ color: 0x39424e }), 0, 0, 0.1);
+    visor.add(visorP);
+    scene.add(visor);
+    let visorDown = false;
+    inter(visorP, 'pare-soleil', () => {
+        if (visorDown) { msg('🕶️ Le pare-soleil est déjà baissé.'); return; }
+        visorDown = true;
+        tween(500, k => visor.rotation.x = -k * 1.5);
+        const key = makeKey(0xc9ced6);
+        key.position.set(-0.48, 1.4, -0.75);
+        scene.add(key);
+        tween(600, k => { key.position.y = 1.4 - k * 0.24; key.rotation.z = k * 2.2; }, () => {
+            inter(key, 'petite clé', () => { scene.remove(key); removeInter(key); addItem('clev', '🗝️', 'la petite clé', 'keyS'); });
+        });
+        msg('👀 Une petite clé tombe du pare-soleil sur le tableau de bord !', true);
+    });
+    // BOÎTE À GANTS -> tournevis
+    const gbox = new THREE.Group(); gbox.position.set(0.5, 0.92, -0.68);
+    const glid = M(B(0.44, 0.24, 0.03), std({ color: 0x323b47, roughness: 0.5 }), 0, 0, 0);
+    gbox.add(glid);
+    scene.add(gbox);
+    let gOpen = false;
+    inter(glid, 'boîte à gants', () => {
+        if (gOpen) { msg('🧤 Des vieux papiers et des bonbons collés... beurk.'); return; }
+        if (selId() === 'clev') {
+            consume('clev'); gOpen = true; sUnlock();
+            tween(500, k => glid.rotation.x = k * 1.3);
+            const tool = new THREE.Group(); tool.position.set(0.5, 0.86, -0.6); tool.rotation.z = 0.6;
+            tool.add(M(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 8), std({ color: 0xaab2bd, metalness: 0.9 }), 0, 0.08, 0));
+            tool.add(M(new THREE.CylinderGeometry(0.028, 0.028, 0.09, 8), std({ color: 0xd0342c }), 0, -0.05, 0));
+            scene.add(tool);
+            inter(tool, 'tournevis', () => { scene.remove(tool); removeInter(tool); addItem('tourn', '🔧', 'le tournevis', 'screw'); });
+            msg('🔓 La boîte à gants s\'ouvre : un TOURNEVIS !', true);
+        } else { sNo(); msg('🔒 La boîte à gants est verrouillée. Serrure fine... petite clé ?'); }
+    });
+    // vitres (nuit + pluie)
+    const stT = texStreet();
+    const ws = M(new THREE.PlaneGeometry(2.2, 1.05), new THREE.MeshBasicMaterial({ map: stT }), 0, 1.15, -1.24, { rx: -0.22 });
+    scene.add(ws);
+    const stT2 = texStreet(); stT2.offset.x = 0.3;
+    scene.add(M(new THREE.PlaneGeometry(1.6, 0.75), new THREE.MeshBasicMaterial({ map: stT2 }), -1.05, 1.12, 0.15, { ry: Math.PI / 2 }));
+    const stT3 = texStreet(); stT3.offset.x = 0.55;
+    scene.add(M(new THREE.PlaneGeometry(1.6, 0.75), new THREE.MeshBasicMaterial({ map: stT3 }), 1.05, 1.12, 0.15, { ry: -Math.PI / 2 }));
+    const stT4 = texStreet(); stT4.offset.x = 0.75;
+    scene.add(M(new THREE.PlaneGeometry(1.9, 0.7), new THREE.MeshBasicMaterial({ map: stT4 }), 0, 1.12, 1.34, { ry: Math.PI }));
+    // essuie-glaces
+    const wl = new THREE.Group(); wl.position.set(-0.5, 0.72, -1.18);
+    wl.add(M(B(0.03, 0.5, 0.015), std({ color: 0x14181d }), 0, 0.25, 0));
+    const wr = new THREE.Group(); wr.position.set(0.25, 0.72, -1.18);
+    wr.add(M(B(0.03, 0.5, 0.015), std({ color: 0x14181d }), 0, 0.25, 0));
+    wl.rotation.z = 0.5; wr.rotation.z = 0.5;
+    scene.add(wl); scene.add(wr);
+    inter(wl.children[0], 'essuie-glace', () => sweep()); inter(wr.children[0], 'essuie-glace', () => sweep());
+    function sweep() {
+        msg('🌧️ Chuik... chuik... les essuie-glaces balaient la pluie !');
+        tween(1500, k => { const a = 0.5 - Math.sin(k * Math.PI) * 1.3; wl.rotation.z = a; wr.rotation.z = a; });
+    }
+
+    // ── décor supplémentaire : gobelet, désodorisant, peluche, carte routière
+    const cup = new THREE.Group(); cup.position.set(0.3, 0.72, 0.06);
+    cup.add(M(new THREE.CylinderGeometry(0.036, 0.028, 0.11, 14), std({ color: 0xf4f0e6, roughness: 0.6 }), 0, 0.055, 0));
+    cup.add(M(new THREE.CylinderGeometry(0.038, 0.038, 0.016, 14), std({ color: 0xc0392b, roughness: 0.5 }), 0, 0.115, 0));
+    scene.add(cup);
+    inter(cup.children[0], "gobelet", () => { sTap(); msg("🥤 Un gobelet de chocolat chaud... encore un peu tiède !"); }, 1.6);
+    const tree = new THREE.Group(); tree.position.set(0.02, 1.3, -0.34);
+    tree.add(M(new THREE.CylinderGeometry(0.002, 0.002, 0.1, 5), std({ color: 0xdddddd }), 0, 0.05, 0));
+    const tri = new THREE.Shape();
+    tri.moveTo(0, 0.11); tri.lineTo(0.055, -0.02); tri.lineTo(0.028, -0.02); tri.lineTo(0.028, -0.055); tri.lineTo(-0.028, -0.055); tri.lineTo(-0.028, -0.02); tri.lineTo(-0.055, -0.02);
+    const treeMesh = M(new THREE.ShapeGeometry(tri), std({ color: 0x3fa34d, roughness: 0.8, side: THREE.DoubleSide }), 0, -0.06, 0);
+    treeMesh.castShadow = false; tree.add(treeMesh);
+    scene.add(tree);
+    G.tickers.push((dt, t) => { tree.rotation.z = Math.sin(t * 1.6) * 0.18; });
+    inter(treeMesh, "sapin désodorisant", () => { sTick(); msg("🌲 Ça sent le pin ! Le petit sapin se balance à chaque virage."); }, 1.8);
+    const plush = new THREE.Group(); plush.position.set(0.05, 0.86, 1.05);
+    plush.add(M(new THREE.SphereGeometry(0.09, 12, 10), std({ color: 0xf0d24a, roughness: 0.95 }), 0, 0.09, 0));
+    plush.add(M(new THREE.SphereGeometry(0.065, 12, 10), std({ color: 0xf0d24a, roughness: 0.95 }), 0, 0.2, 0.01));
+    plush.add(M(new THREE.ConeGeometry(0.035, 0.06, 10), std({ color: 0xe07b2a, roughness: 0.85 }), 0, 0.2, 0.08, { rx: Math.PI / 2 }));
+    [[-0.03, 0.23], [0.03, 0.23]].forEach(([px, py]) => plush.add(M(new THREE.SphereGeometry(0.011, 8, 6), std({ color: 0x1a1410 }), px, py, 0.06)));
+    scene.add(plush);
+    inter(plush.children[0], "peluche canard", () => { sTap(); msg("🦆 Coin coin ! Le canard en peluche surveille la lunette arrière."); }, 2.2);
+    const roadmap = M(RB(0.3, 0.012, 0.22, 0.01), std({
+        map: cnv(160, 120, (g2, w2, h2) => {
+            g2.fillStyle = '#f2ecd8'; g2.fillRect(0, 0, w2, h2);
+            g2.strokeStyle = '#c9a45c'; g2.lineWidth = 3;
+            g2.beginPath(); g2.moveTo(0, 80); g2.bezierCurveTo(50, 40, 110, 100, 160, 55); g2.stroke();
+            g2.strokeStyle = '#7fa86b'; g2.beginPath(); g2.moveTo(20, 0); g2.lineTo(60, 120); g2.stroke();
+            g2.fillStyle = '#c0392b'; g2.beginPath(); g2.arc(112, 82, 6, 0, 7); g2.fill();
+        }), roughness: 0.85
+    }), 0.55, 0.72, 0.3, { ry: 0.35 });
+    scene.add(roadmap);
+    inter(roadmap, "carte routière", () => { sTap(); msg("🗺️ Une vieille carte pliée. Une croix rouge marque un endroit... mais lequel ?"); }, 1.9);
+
+    G.pos.set(-0.45, 1.28, 0.28); G.yaw = 0.25; G.pitch = -0.12;
+    G.bounds = null;
+}
+
+/* -------- SALLE 4 : LA CUISINE ENSORCELÉE -------- */
+function buildCuisine() {
+    scene.background = new THREE.Color(0x0e1512);
+    scene.fog = new THREE.Fog(0x0e1512, 6, 15);
+    scene.add(room(5.8, 4.8, 2.8, texWood('#c9b28a', '90,70,40'), texWall('#2f5d52', '255,255,255', 0.06), 0xEFF3EA));
+    scene.add(new THREE.AmbientLight(0xfff4e2, 0.42));
+    const pl = new THREE.PointLight(0xffe9c4, 0.95, 13); pl.position.set(0, 2.4, 0.2); pl.castShadow = true; pl.shadow.mapSize.set(1024, 1024); scene.add(pl);
+    const win = M(new THREE.PlaneGeometry(1.5, 1.1), new THREE.MeshBasicMaterial({ map: texNightWindow() }), -1.4, 1.6, -2.37);
+    win.castShadow = false; scene.add(win);
+    scene.add(M(B(1.66, 1.26, 0.06), std({ color: 0xffffff }), -1.4, 1.6, -2.42));
+    // plan de travail + évier
+    const cWood = texWood('#8a5a2b', '50,30,10');
+    const counter = new THREE.Group(); counter.position.set(1.4, 0, -1.9);
+    counter.add(M(RB(2.2, 0.9, 0.6, 0.045), std({ map: cWood, roughness: 0.55 }), 0, 0.45, 0));
+    counter.add(M(RB(2.26, 0.06, 0.66, 0.022), std({ color: 0x2b3038, roughness: 0.3, metalness: 0.4 }), 0, 0.93, 0));
+    scene.add(counter);
+    // crédence carrelée + hotte inox + placards hauts (design cuisine réaliste)
+    const cred = M(new THREE.PlaneGeometry(3.0, 0.7), std({ map: texTiles('#e8e2d4', '#b8b2a4'), roughness: 0.35 }), 1.2, 1.32, -2.36);
+    cred.castShadow = false; scene.add(cred);
+    const hood = new THREE.Group(); hood.position.set(1.4, 0, -2.05);
+    hood.add(M(B(0.8, 0.09, 0.55), std({ color: 0x9aa4ad, metalness: 0.85, roughness: 0.25 }), 0, 1.78, 0.15));
+    hood.add(M(B(0.34, 0.6, 0.34), std({ color: 0xaab2bd, metalness: 0.8, roughness: 0.3 }), 0, 2.15, 0.05));
+    hood.add(M(B(0.76, 0.04, 0.5), std({ color: 0x2b3038 }), 0, 1.74, 0.15));
+    scene.add(hood);
+    [[-0.1, 0], [0.62, 0]].forEach(([px]) => {
+        const cab = new THREE.Group(); cab.position.set(px + 2.05, 0, -2.22);
+        cab.add(M(B(0.66, 0.6, 0.34), std({ map: cWood, roughness: 0.55 }), 0, 1.95, 0));
+        cab.add(M(B(0.6, 0.54, 0.03), std({ map: cWood, roughness: 0.45 }), 0, 1.95, 0.18));
+        cab.add(M(new THREE.TorusGeometry(0.022, 0.007, 8, 14), std({ color: 0x9aa4ad, metalness: 0.9 }), 0.2, 1.8, 0.2, { rx: Math.PI / 2 }));
+        scene.add(cab);
+        inter(cab.children[1], 'placard haut', () => msg('🥫 Des assiettes, des verres, des boîtes de conserve... bien rangés, rien de secret.'), 3.0);
+    });
+    scene.add(M(B(0.5, 0.05, 0.4), std({ color: 0x9aa4ad, metalness: 0.8, roughness: 0.2 }), 1.9, 0.9, -1.9));
+    const tap = M(new THREE.CylinderGeometry(0.02, 0.02, 0.24, 8), std({ color: 0x9aa4ad, metalness: 0.9 }), 1.9, 1.04, -2.06); scene.add(tap);
+    inter(tap, 'robinet', () => { tone(300, 0.4, 'sine', 0.05); msg('🚰 L\'eau coule... chhhh. Rien de caché ici.'); });
+    // étagère à pots : les PILES de la télécommande sont cachées dans la FARINE
+    const shelfP = new THREE.Group(); shelfP.position.set(-0.55, 0, -2.3);
+    shelfP.add(M(B(1.25, 0.05, 0.26), std({ map: cWood, roughness: 0.5 }), 0, 1.42, 0));
+    [[-1, 0x3a2412], [1, 0x3a2412]].forEach(([sd]) => shelfP.add(M(B(0.05, 0.09, 0.22), std({ color: 0x3a2412 }), sd * 0.55, 1.36, 0)));
+    const potDefs = [
+        { x: -0.42, col: 0xeef1f4, lbl: 'SEL', nm: 'pot de sel', m: '🧂 Que du sel bien blanc... atch... non, ça c\'est le poivre.' },
+        { x: 0.0, col: 0x3a3f46, lbl: 'POIVRE', nm: 'pot de poivre', m: '🌶️ ATCHOUM ! Du poivre qui pique le nez. Rien là-dedans.' },
+        { x: 0.42, col: 0xe8d9b8, lbl: 'FARINE', nm: 'pot de farine', m: '' }
+    ];
+    let pilesGot = false;
+    potDefs.forEach(pd => {
+        const pot = new THREE.Group(); pot.position.set(pd.x, 1.45, 0);
+        pot.add(M(new THREE.CylinderGeometry(0.085, 0.075, 0.2, 14), std({ color: pd.col, roughness: 0.5 }), 0, 0.1, 0));
+        pot.add(M(new THREE.CylinderGeometry(0.09, 0.09, 0.035, 14), std({ map: cWood }), 0, 0.215, 0));
+        const lb = M(new THREE.PlaneGeometry(0.11, 0.055), new THREE.MeshBasicMaterial({
+            map: cnv(128, 64, (g2, w2, h2) => { g2.fillStyle = '#f4e8c8'; g2.fillRect(0, 0, w2, h2); g2.fillStyle = '#5a3a1a'; g2.font = 'bold 26px serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText(pd.lbl, w2 / 2, h2 / 2 + 2); })
+        }), 0, 0.1, 0.086);
+        lb.castShadow = false; pot.add(lb);
+        shelfP.add(pot);
+        inter(pot.children[0], pd.nm, () => {
+            if (pd.lbl !== 'FARINE') { msg(pd.m); return; }
+            if (pilesGot) { msg('🌫️ Encore un nuage de farine... mais plus rien dedans.'); return; }
+            pilesGot = true; sUnlock();
+            msg('🌫️ POUF ! Un nuage de farine... et deux PILES cachées au fond du pot !', true);
+            setTimeout(() => spawnItem(new THREE.Vector3(-0.13, 1.55, -2.05), () => { const b2 = new THREE.Group(); [-0.02, 0.02].forEach(bx => { b2.add(M(new THREE.CylinderGeometry(0.016, 0.016, 0.07, 10), std({ color: 0x2e7d4f, metalness: 0.4 }), bx, 0, 0)); b2.add(M(new THREE.CylinderGeometry(0.006, 0.006, 0.012, 8), std({ color: 0xd9b24c, metalness: 0.9 }), bx, 0.04, 0)); }); return b2; }, 'piles', '🔋', 'les piles'), 520);
+        }, 3.0);
+    });
+    scene.add(shelfP);
+    // FRIGO -> petite clé aimantée
+    const fridge = new THREE.Group(); fridge.position.set(2.6, 0, 1.4); fridge.rotation.y = -Math.PI / 2;
+    fridge.add(M(RB(0.9, 2.0, 0.8, 0.06), std({ color: 0xdfe4e8, roughness: 0.35, metalness: 0.2 }), 0, 1.0, 0));
+    const fPivot = new THREE.Group(); fPivot.position.set(-0.44, 1.0, 0.41);
+    const fDoor = M(RB(0.86, 1.9, 0.06, 0.045), std({ color: 0xeef1f4, roughness: 0.3, metalness: 0.25 }), 0.43, 0, 0);
+    fPivot.add(fDoor);
+    fPivot.add(M(B(0.05, 0.5, 0.05), std({ color: 0x9aa4ad, metalness: 0.7 }), 0.8, 0.4, 0.05));
+    ['🍎', '🌟', '🔢'].forEach((e, i) => { const s = emojiSprite(e, 0.14); s.position.set(0.55, 0.25 - i * 0.26, 0.05); fPivot.add(s); });
+    fridge.add(fPivot); scene.add(fridge);
+    let fOpen = false, fGot = false;
+    inter(fDoor, 'frigo', () => {
+        if (!fOpen) {
+            fOpen = true; sUnlock(); tween(700, k => fPivot.rotation.y = -k * 2.0);
+            const fl = new THREE.PointLight(0xdfffff, 0.6, 1.6); fl.position.set(2.2, 1.2, 1.4); scene.add(fl);
+            msg('🧊 Le frigo s\'ouvre... une petite clé aimantée est collée au fond !', true);
+            if (!fGot) { fGot = true; setTimeout(() => spawnItem(new THREE.Vector3(2.25, 1.2, 1.4), () => makeKey(0xc9ced6), 'ckcui', '🗝️', 'la clé du placard', 'keyS'), 500); }
+        } else msg('🥕 Des légumes, du lait, un gâteau entamé... et c\'est tout.');
+    });
+    // MEUBLE À TIROIRS MULTIPLES
+    scene.add(dresserUnit(-2.5, -0.5, Math.PI / 2, {
+        w: 1.2, h: 0.98, d: 0.5, tex: cWood,
+        drawers: [
+            { label: 'tiroir à couverts', msg: '🍴 Des fourchettes et des cuillères qui s\'entrechoquent... rien d\'utile.', emptyMsg: '🍴 Toujours des couverts.' },
+            { label: 'tiroir aux recettes', note: 'RECETTE MAGIQUE\n\n« Règle le FOUR sur le code SEPT-SEPT-DEUX.\nCompte les bougies du gâteau si tu doutes...\nAlors la clé apparaîtra dans la pâte. »', emptyMsg: '📜 Le vieux carnet de recettes.' },
+            {
+                label: 'tiroir verrouillé', locked: true, keyId: 'ckcui',
+                lockMsg: '🔒 Ce tiroir a une petite serrure. Une clé aimantée l\'ouvrirait... peut-être dans le frigo ?',
+                onOpen: (g, front, wp) => {
+                    msg('🔓 Dans le tiroir : un moule en étoile et la TÉLÉCOMMANDE du four... sans piles !', true);
+                    spawnItem(wp, () => { const r = new THREE.Group(); r.add(M(B(0.17, 0.04, 0.09), std({ color: 0x22282f }), 0, 0, 0)); r.add(M(new THREE.SphereGeometry(0.012, 8, 8), std({ color: 0x7CFC9A, emissive: 0x7CFC9A, emissiveIntensity: 1 }), 0.055, 0.026, 0)); return r; }, 'remfour', '🎛️', 'la télécommande du four');
+                },
+                emptyMsg: '🗄️ Le tiroir est vide maintenant.'
+            }
+        ]
+    }));
+    // FOUR -> clé dorée (code 772)
+    const oven = new THREE.Group(); oven.position.set(1.4, 0, -1.9);
+    const ovGlass = M(new THREE.PlaneGeometry(0.5, 0.4), new THREE.MeshBasicMaterial({ color: 0x0a0d12 }), 0, 0.42, 0.32);
+    oven.add(M(B(0.7, 0.7, 0.05), std({ color: 0x2b3038, metalness: 0.5, roughness: 0.3 }), 0, 0.42, 0.3));
+    oven.add(ovGlass);
+    oven.add(M(B(0.5, 0.05, 0.06), std({ color: 0x9aa4ad, metalness: 0.8 }), 0, 0.67, 0.34));
+    scene.add(oven);
+    let ovOpen = false;
+    inter(ovGlass, 'four', () => {
+        if (ovOpen) { msg('🎂 Le four est vide maintenant.'); return; }
+        if (!has('remfour')) { sNo(); msg('🔌 Le four est éteint. Il faudrait une télécommande pour le régler.'); return; }
+        if (!has('piles')) { sNo(); msg('🔋 La télécommande est MORTE : plus de piles ! Fouille les pots de la cuisine...'); return; }
+        openPad('772', () => {
+            ovOpen = true; ovGlass.material.color.setHex(0xff7a2d);
+            const gl = new THREE.PointLight(0xff7a2d, 0, 2.4); gl.position.set(1.4, 0.55, -1.5); scene.add(gl);
+            tween(1200, k => gl.intensity = k * 1.2);
+            msg('🔥 Le four chauffe... un gâteau doré gonfle, avec une CLÉ plantée dedans !', true);
+            setTimeout(() => spawnItem(new THREE.Vector3(1.4, 1.12, -1.6), () => makeKey(0xf4c542), 'cledcui', '🔑', 'la clé du gâteau', 'keyG', 1.4), 900);
+        });
+    });
+    // gâteau leurre (7 bougies)
+    const cake = new THREE.Group(); cake.position.set(0.65, 0.96, -1.9);
+    cake.add(M(new THREE.CylinderGeometry(0.16, 0.18, 0.14, 20), std({ color: 0xf6d8a8 }), 0, 0.07, 0));
+    cake.add(M(new THREE.CylinderGeometry(0.165, 0.165, 0.03, 20), std({ color: 0xd83b6b }), 0, 0.15, 0));
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; cake.add(M(new THREE.CylinderGeometry(0.006, 0.006, 0.07, 6), std({ color: 0xffe9a8, emissive: 0xffd23b, emissiveIntensity: 0.6 }), Math.cos(a) * 0.1, 0.19, Math.sin(a) * 0.1)); }
+    scene.add(cake);
+    inter(cake.children[0], 'gâteau', () => msg('🎂 Tu comptes les bougies : il y en a SEPT. Un chiffre utile pour le four...', true));
+    // PORTE du garde-manger
+    doorMain = makeDoor(-0.6, 2.38, Math.PI, 0x8a6a3a); scene.add(doorMain);
+    inter(doorMain.userData.pivot.children[0], 'porte du garde-manger', () => { if (has('cledcui')) victoryDoor(); else { sNo(); msg('🔒 La porte du garde-manger est verrouillée. Une clé dorée l\'ouvrirait.'); } });
+    scene.add(dust(5.2, 2.6, 4.2));
+
+    // ── décor supplémentaire : casseroles, fruits, grille-pain, bocaux, torchon, tabouret
+    const rail = new THREE.Group(); rail.position.set(-1.25, 1.78, -2.3);
+    rail.add(M(new THREE.CylinderGeometry(0.012, 0.012, 1.1, 10), std({ color: 0x9aa4ad, metalness: 0.85, roughness: 0.25 }), 0, 0, 0, { rz: Math.PI / 2 }));
+    [[-0.36, 0.15, 0x2b3038], [0, 0.19, 0xb5651d], [0.36, 0.13, 0x8a949d]].forEach(([px, rr, cc]) => {
+        const pan = new THREE.Group(); pan.position.set(px, -0.08 - rr * 0.5, 0);
+        pan.add(M(new THREE.CylinderGeometry(rr, rr * 0.9, rr * 0.75, 18, 1, true), std({ color: cc, metalness: 0.6, roughness: 0.35, side: THREE.DoubleSide }), 0, 0, 0));
+        pan.add(M(new THREE.CircleGeometry(rr * 0.9, 18), std({ color: cc, metalness: 0.6, roughness: 0.4 }), 0, -rr * 0.375, 0, { rx: Math.PI / 2 }));
+        pan.add(M(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 8), std({ color: 0x2b2f36, roughness: 0.5 }), rr + 0.1, 0.02, 0, { rz: Math.PI / 2 }));
+        pan.add(M(new THREE.TorusGeometry(0.02, 0.005, 6, 12), std({ color: 0x9aa4ad, metalness: 0.8 }), 0, rr * 0.42, 0, { rx: Math.PI / 2 }));
+        rail.add(pan);
+    });
+    scene.add(rail);
+    inter(rail.children[1].children[0], "casseroles", () => { sTick(); msg("🍳 Cling ! Les casseroles pendues tintent comme des cloches."); }, 3.0);
+    const bowl = new THREE.Group(); bowl.position.set(0.6, 0.96, -1.86);
+    bowl.add(M(new THREE.SphereGeometry(0.14, 18, 12, 0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48), std({ color: 0xe8dcc2, roughness: 0.4, side: THREE.DoubleSide }), 0, 0.06, 0));
+    [[0, 0.09, 0, 0xd94f3d, 0.055], [-0.06, 0.1, 0.04, 0xf0c419, 0.05], [0.06, 0.1, -0.03, 0x7fb84a, 0.052], [0.01, 0.15, 0.01, 0xe0742a, 0.048]].forEach(([px, py, pz, cc, rr]) =>
+        bowl.add(M(new THREE.SphereGeometry(rr, 12, 10), std({ color: cc, roughness: 0.6 }), px, py, pz)));
+    scene.add(bowl);
+    inter(bowl.children[1], "bol de fruits", () => { sTap(); msg("🍎 Pommes, citron, kiwi et une orange bien mûre. Ça donne faim !"); }, 3.0);
+    const toast = new THREE.Group(); toast.position.set(2.25, 0.94, -1.86);
+    toast.add(M(RB(0.3, 0.2, 0.18, 0.045), std({ color: 0xc4ccd4, metalness: 0.75, roughness: 0.25 }), 0, 0.1, 0));
+    [-0.07, 0.07].forEach(px => toast.add(M(B(0.1, 0.012, 0.1), std({ color: 0x1a1e24 }), px, 0.201, 0)));
+    toast.add(M(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 12), std({ color: 0x8a949d, metalness: 0.7 }), 0.1, 0.12, 0.095, { rx: Math.PI / 2 }));
+    scene.add(toast);
+    inter(toast.children[0], "grille-pain", () => { sTap(); msg("🍞 Clac ! Le grille-pain saute... mais il est vide. Dommage."); }, 3.0);
+    const jshelf = new THREE.Group(); jshelf.position.set(-2.2, 1.48, -2.3);
+    jshelf.add(M(RB(0.7, 0.035, 0.2, 0.014), std({ map: texWood('#8a6a3d', '50,30,10'), roughness: 0.6 }), 0, 0, 0));
+    [[-0.17, 0xd9a24a, 'MIEL'], [0.17, 0xa8443d, 'CONFITURE']].forEach(([px, cc]) => {
+        const jar = new THREE.Group(); jar.position.set(px, 0.02, 0);
+        jar.add(M(new THREE.CylinderGeometry(0.055, 0.055, 0.14, 16), std({ color: cc, roughness: 0.25, transparent: true, opacity: 0.85 }), 0, 0.07, 0));
+        jar.add(M(new THREE.CylinderGeometry(0.058, 0.058, 0.025, 16), std({ color: 0xb8933b, metalness: 0.7, roughness: 0.35 }), 0, 0.152, 0));
+        jshelf.add(jar);
+    });
+    scene.add(jshelf);
+    inter(jshelf.children[1].children[0], "bocaux", () => { sTap(); msg("🍯 Un bocal de miel doré et un pot de confiture. Rien de caché dedans."); }, 3.0);
+    const towel = M(B(0.2, 0.3, 0.012), std({ map: texTiles('#e8f0e4', '#9fbf9a'), roughness: 0.95 }), 1.72, 0.72, -1.57);
+    scene.add(towel);
+    inter(towel, "torchon", () => { sTap(); msg("🧻 Un torchon à carreaux bien plié. Il sent la lessive."); }, 3.0);
+    const stool = new THREE.Group(); stool.position.set(-2.35, 0, 0.45);
+    stool.add(M(new THREE.CylinderGeometry(0.19, 0.19, 0.05, 18), std({ map: texWood('#a8763d', '60,35,12'), roughness: 0.6 }), 0, 0.62, 0));
+    [[-0.13, -0.13], [0.13, -0.13], [-0.13, 0.13], [0.13, 0.13]].forEach(([px, pz]) =>
+        stool.add(M(new THREE.CylinderGeometry(0.018, 0.024, 0.62, 8), std({ color: 0x6b4a26, roughness: 0.7 }), px, 0.31, pz)));
+    stool.add(M(new THREE.TorusGeometry(0.14, 0.012, 6, 20), std({ color: 0x6b4a26 }), 0, 0.24, 0, { rx: Math.PI / 2 }));
+    scene.add(stool);
+    inter(stool.children[0], "tabouret", () => { sTap(); msg("🪑 Un tabouret en bois. Parfait pour attraper ce qui est trop haut !"); }, 2.8);
+
+    G.pos.set(-0.2, 1.5, 1.3); G.yaw = Math.PI; G.pitch = 0;
+    G.bounds = { x1: -2.1, x2: 2.0, z1: -1.1, z2: 1.8 };
+}
+
+/* -------- SALLE 5 : LE GRENIER AU TRÉSOR -------- */
+function buildGrenier() {
+    scene.background = new THREE.Color(0x1a1206);
+    scene.fog = new THREE.Fog(0x1a1206, 5, 13);
+    scene.add(room(5.6, 4.6, 2.6, texWood('#7a5a34', '50,30,12'), texWood('#6b4a26', '40,20,6'), 0x4a3a24));
+    scene.add(new THREE.AmbientLight(0xffe6b0, 0.32));
+    const sky = M(new THREE.PlaneGeometry(1.0, 0.8), new THREE.MeshBasicMaterial({ map: texNightWindow() }), 0.6, 2.55, 0, { rx: Math.PI / 2 });
+    sky.castShadow = false; scene.add(sky);
+    const moon = new THREE.PointLight(0xbcd0ff, 0.7, 10); moon.position.set(0.6, 2.35, 0); moon.castShadow = true; scene.add(moon);
+    const lampL = new THREE.PointLight(0xffb860, 0.55, 8); lampL.position.set(-1.2, 1.9, -1); scene.add(lampL);
+    scene.add(M(new THREE.SphereGeometry(0.06, 12, 10), std({ color: 0xffe9a8, emissive: 0xffdf9e, emissiveIntensity: 1.2 }), -1.2, 2.0, -1));
+    const beam = std({ map: texWood('#5c3a1c', '30,15,4') });
+    [-1.4, 0.2, 1.6].forEach(x => scene.add(M(B(0.16, 0.16, 4.4), beam, x, 2.42, 0)));
+    // MALLE -> LOUPE
+    const t1 = new THREE.Group(); t1.position.set(-1.9, 0, 1.3);
+    t1.add(M(B(0.7, 0.4, 0.5), std({ map: texWood('#6b4a26', '40,20,6') }), 0, 0.2, 0));
+    const lid1 = new THREE.Group(); lid1.position.set(0, 0.4, -0.25);
+    lid1.add(M(B(0.7, 0.08, 0.5), std({ map: texWood('#6b4a26', '40,20,6') }), 0, 0.04, 0.25));
+    t1.add(lid1); scene.add(t1);
+    let l1 = false, gotLoupe = false;
+    inter(lid1.children[0], 'vieille malle', () => {
+        if (!l1) {
+            l1 = true; sUnlock(); tween(600, k => lid1.rotation.x = -k * 1.9);
+            msg('🧸 Sous de vieux jouets poussiéreux... une LOUPE de détective !', true);
+            if (!gotLoupe) { gotLoupe = true; setTimeout(() => spawnItem(new THREE.Vector3(-1.9, 0.45, 1.15), heldLoupe, 'loupe', '🔍', 'la loupe', 'loupe', 1.2), 500); }
+        } else msg('🧸 Juste de vieux jouets cassés.');
+    });
+    // CARTE AU TRÉSOR (la loupe révèle 419)
+    const mapG = new THREE.Group(); mapG.position.set(0.1, 1.5, -2.26);
+    mapG.add(M(B(0.94, 0.74, 0.03), std({ color: 0x5a3a1a }), 0, 0, 0));
+    const mapFace = M(new THREE.PlaneGeometry(0.84, 0.63), new THREE.MeshBasicMaterial({ map: texTreasureMap(false) }), 0, 0, 0.025);
+    mapFace.castShadow = false;
+    mapG.add(mapFace); scene.add(mapG);
+    let mapRead = false;
+    inter(mapFace, 'carte au trésor', () => {
+        if (selId() === 'loupe') {
+            mapFace.material.map = texTreasureMap(true); mapFace.material.needsUpdate = true;
+            if (!mapRead) { mapRead = true; sUnlock(); }
+            msg('🔍 Avec la loupe, des chiffres cachés apparaissent : 4 - 1 - 9 !', true);
+        } else { sNo(); msg('🗺️ Une carte jaunie... les inscriptions sont bien trop petites à l\'œil nu.'); }
+    });
+    // COFFRE À MOLETTES (419) -> clé rouillée
+    const t2 = new THREE.Group(); t2.position.set(1.7, 0, -1.4);
+    t2.add(M(B(0.75, 0.5, 0.55), std({ color: 0x3a2c1a, roughness: 0.7 }), 0, 0.25, 0));
+    t2.add(M(B(0.78, 0.12, 0.58), std({ color: 0x2a1f12 }), 0, 0.52, 0));
+    const dialVals = [0, 0, 0], target = [4, 1, 9], dnum = [];
+    let chestOpen = false;
+    for (let i = 0; i < 3; i++) {
+        const dg = new THREE.Group(); dg.position.set(-0.18 + i * 0.18, 0.3, 0.29);
+        dg.add(M(new THREE.CylinderGeometry(0.055, 0.055, 0.03, 16), std({ color: 0xd9b24c, metalness: 0.8 }), 0, 0, 0, { rx: Math.PI / 2 }));
+        const ns = emojiSprite('0', 0.07); ns.position.set(0, 0, 0.035); dg.add(ns); dnum.push(ns);
+        t2.add(dg);
+        inter(dg.children[0], 'molette ' + (i + 1), () => {
+            if (chestOpen) { msg('🔓 Le coffre est déjà ouvert.'); return; }
+            dialVals[i] = (dialVals[i] + 1) % 10;
+            dnum[i].material.map = cnv(128, 128, (g, w, h) => { g.font = '92px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(dialVals[i]), w / 2, h / 2 + 6); });
+            dnum[i].material.needsUpdate = true;
+            tone(500 + dialVals[i] * 30, 0.05, 'square', 0.06);
+            if (dialVals.join('') === target.join('')) {
+                chestOpen = true; sUnlock();
+                msg('🔓 CLIC-CLIC-CLIC ! Le petit coffre s\'ouvre !', true);
+                setTimeout(() => spawnItem(new THREE.Vector3(1.7, 0.72, -1.15), () => makeKey(0x8a5a3a), 'cerouille', '🗝️', 'la clé rouillée', 'keyS'), 420);
+            } else msg('🔢 Molette ' + (i + 1) + ' → ' + dialVals[i]);
+        }, 3.6);
+    }
+    scene.add(t2);
+    // GRAND COFFRE (clé rouillée) -> clé dorée de la trappe
+    const t3 = new THREE.Group(); t3.position.set(2.35, 0, 0.8); t3.rotation.y = -Math.PI / 2;
+    t3.add(M(B(0.9, 0.6, 0.6), std({ map: texWood('#5c3a1c', '30,15,4') }), 0, 0.3, 0));
+    const lid3 = new THREE.Group(); lid3.position.set(0, 0.6, -0.3);
+    lid3.add(M(B(0.9, 0.15, 0.6), std({ map: texWood('#5c3a1c', '30,15,4') }), 0, 0.075, 0.3));
+    const lock3 = M(B(0.11, 0.15, 0.05), std({ color: 0x8a6a1d, metalness: 0.7 }), 0, 0.52, 0.31);
+    t3.add(lock3); t3.add(lid3); scene.add(t3);
+    let t3open = false;
+    const openT3 = () => {
+        if (t3open) { msg('🏴‍☠️ Le grand coffre est déjà ouvert.'); return; }
+        if (has('cerouille')) {
+            consume('cerouille'); t3open = true; sUnlock();
+            tween(400, k => lock3.position.y = 0.52 + k * 0.3, () => t3.remove(lock3));
+            tween(800, k => lid3.rotation.x = -k * 1.8);
+            msg('🏴‍☠️ Le grand coffre s\'ouvre sur un tas de pièces d\'or... et la clé de la TRAPPE !', true);
+            setTimeout(() => spawnItem(new THREE.Vector3(2.05, 0.62, 0.8), () => makeKey(0xf4c542), 'cledgren', '🔑', 'la clé de la trappe', 'keyG', 1.4), 520);
+        } else { sNo(); msg('🔒 Un gros cadenas rouillé ferme ce coffre. Une clé rouillée l\'ouvrirait.'); }
+    };
+    inter(lock3, 'cadenas rouillé', openT3); inter(lid3.children[0], 'grand coffre', openT3);
+    // cheval à bascule (déco)
+    const horse = new THREE.Group(); horse.position.set(-2.0, 0, -1.2);
+    horse.add(M(B(0.5, 0.2, 0.15), std({ color: 0xb35c2d }), 0, 0.5, 0));
+    horse.add(M(new THREE.SphereGeometry(0.12, 10, 8), std({ color: 0xb35c2d }), 0.28, 0.6, 0));
+    [-0.09, 0.09].forEach(zz => horse.add(M(new THREE.TorusGeometry(0.22, 0.03, 8, 20, Math.PI), std({ color: 0x6b4a26 }), 0, 0.28, zz)));
+    scene.add(horse);
+    inter(horse.children[0], 'cheval à bascule', () => { tween(1400, k => horse.rotation.z = Math.sin(k * Math.PI * 3) * 0.18); sTap(); msg('🐴 Le vieux cheval à bascule grince en se balançant...'); });
+    // TRAPPE de sortie
+    const trap = new THREE.Group(); trap.position.set(-0.6, 0.03, 1.5);
+    const trapPivot = new THREE.Group(); trapPivot.position.set(-0.45, 0, 0);
+    const trapP = M(B(0.9, 0.06, 0.9), std({ map: texWood('#4a2d13', '20,10,2') }), 0.45, 0, 0);
+    const ring = M(new THREE.TorusGeometry(0.06, 0.012, 8, 16), std({ color: 0xd9b24c, metalness: 0.9 }), 0.72, 0.05, 0, { rx: Math.PI / 2 });
+    trapPivot.add(trapP); trapPivot.add(ring); trap.add(trapPivot); scene.add(trap);
+    let trapDone = false;
+    const doTrap = () => {
+        if (trapDone) return;
+        if (has('cledgren')) {
+            trapDone = true; sUnlock();
+            msg('🔓 Tu déverrouilles la trappe et la soulèves... la liberté t\'attend en bas !', true);
+            tween(1100, k => trapPivot.rotation.z = -k * 1.9);
+            setTimeout(victory, 1300);
+        } else { sNo(); msg('🔒 Une trappe dans le plancher ! Cadenassée. Il faut une clé dorée.'); }
+    };
+    inter(trapP, 'trappe', doTrap, 4.5); inter(ring, 'anneau de la trappe', doTrap, 4.5);
+    doorMain = null;
+    scene.add(dust(5.2, 2.4, 4.2));
+
+    // ── décor supplémentaire : cartons, toile d\'araignée, lanterne, valise, cadre, épée
+    const boxes = new THREE.Group(); boxes.position.set(2.35, 0, -1.55);
+    const carton = std({ map: texWood('#b08a55', '80,55,25'), roughness: 0.92 });
+    [[0, 0, 0, 0.52, 0.34], [0.05, 0.36, -0.03, 0.44, 0.3], [-0.03, 0.68, 0.04, 0.36, 0.26]].forEach(([px, py, pz, ww, hh], i) => {
+        const bx = M(RB(ww, hh, ww * 0.8, 0.02), carton, px, py + hh / 2, pz, { ry: i * 0.35 - 0.2 });
+        boxes.add(bx);
+        boxes.add(M(B(ww * 0.9, 0.004, 0.05), std({ color: 0xd8c9a8, roughness: 0.9 }), px, py + hh + 0.002, pz, { ry: i * 0.35 - 0.2 }));
+    });
+    scene.add(boxes);
+    inter(boxes.children[0], "cartons empilés", () => { sTap(); msg("📦 Des cartons scotchés : « Noël », « Photos », « Jouets bébé ». Que de souvenirs !"); }, 3.0);
+    const web = M(new THREE.PlaneGeometry(0.85, 0.85), new THREE.MeshBasicMaterial({
+        transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+        map: cnv(128, 128, (g2, w2, h2) => {
+            g2.clearRect(0, 0, w2, h2); g2.strokeStyle = 'rgba(255,255,255,0.9)'; g2.lineWidth = 1.4;
+            for (let a2 = 0; a2 < 8; a2++) { const an = a2 * Math.PI / 16; g2.beginPath(); g2.moveTo(0, 0); g2.lineTo(Math.cos(an) * 190, Math.sin(an) * 190); g2.stroke(); }
+            for (let r3 = 20; r3 < 190; r3 += 22) { g2.beginPath(); g2.arc(0, 0, r3, 0, Math.PI / 2); g2.stroke(); }
+        })
+    }), -2.42, 2.24, -1.94, { rx: Math.PI / 4, ry: Math.PI / 4 });
+    web.castShadow = false; scene.add(web);
+    inter(web, "toile d\'araignée", () => { sTick(); msg("🕸️ Brrr ! Une grande toile poussiéreuse... l\'araignée est partie depuis longtemps."); }, 3.0);
+    const lant = new THREE.Group(); lant.position.set(-2.3, 0, 1.55);
+    lant.add(M(new THREE.CylinderGeometry(0.11, 0.13, 0.05, 12), std({ color: 0x4a4038, metalness: 0.6, roughness: 0.5 }), 0, 0.025, 0));
+    lant.add(M(new THREE.CylinderGeometry(0.1, 0.1, 0.2, 12, 1, true), std({ color: 0xffe3a8, emissive: 0xffb84a, emissiveIntensity: 0.7, transparent: true, opacity: 0.65, side: THREE.DoubleSide }), 0, 0.15, 0));
+    lant.add(M(new THREE.ConeGeometry(0.14, 0.09, 12), std({ color: 0x4a4038, metalness: 0.6, roughness: 0.5 }), 0, 0.3, 0));
+    lant.add(M(new THREE.TorusGeometry(0.05, 0.008, 6, 14), std({ color: 0x5a5048, metalness: 0.7 }), 0, 0.38, 0, { rx: Math.PI / 2 }));
+    const lantL = new THREE.PointLight(0xffb84a, 0.5, 2.6); lantL.position.set(0, 0.16, 0); lant.add(lantL);
+    G.tickers.push((dt, t) => { lantL.intensity = 0.42 + Math.sin(t * 7.3) * 0.09; });
+    scene.add(lant);
+    inter(lant.children[1], "lanterne", () => { sTick(); msg("🏮 Une lanterne tempête. Sa flamme vacille et fait danser les ombres."); }, 2.8);
+    const suit = new THREE.Group(); suit.position.set(-2.3, 0, -0.35); suit.rotation.y = 0.3;
+    suit.add(M(RB(0.5, 0.34, 0.2, 0.035), std({ map: texWood('#5a3a20', '30,15,4'), roughness: 0.75 }), 0, 0.17, 0));
+    suit.add(M(B(0.52, 0.03, 0.22), std({ color: 0x8a6a3d, metalness: 0.5, roughness: 0.5 }), 0, 0.2, 0));
+    suit.add(M(new THREE.TorusGeometry(0.05, 0.012, 6, 14), std({ color: 0xb8933b, metalness: 0.8, roughness: 0.3 }), 0, 0.35, 0, { rx: Math.PI / 2 }));
+    [[-0.14, 0.14]].forEach(() => { });
+    [-0.14, 0.14].forEach(px => suit.add(M(B(0.04, 0.36, 0.22), std({ color: 0x7a5a34, roughness: 0.7 }), px, 0.17, 0)));
+    scene.add(suit);
+    inter(suit.children[0], "valise", () => { sTap(); msg("🧳 Une vieille valise de voyage couverte d\'étiquettes. Fermée à double tour."); }, 2.8);
+    const oldFrame = M(RB(0.42, 0.55, 0.04, 0.015), std({ map: texWood('#6b4a26', '40,20,6'), roughness: 0.7 }), 2.45, 0.28, 1.25, { rz: 0.14, ry: -0.4 });
+    scene.add(oldFrame);
+    scene.add(M(new THREE.PlaneGeometry(0.32, 0.44), std({ color: 0xd8c9a8, roughness: 0.9 }), 2.43, 0.28, 1.28, { rz: 0.14, ry: -0.4 }));
+    inter(oldFrame, "cadre ancien", () => { sTap(); msg("🖼️ Un portrait tout jauni... on ne distingue plus le visage."); }, 2.8);
+    const sword = new THREE.Group(); sword.position.set(2.5, 0, 0.25); sword.rotation.z = 0.22; sword.rotation.y = -0.5;
+    sword.add(M(RB(0.06, 0.7, 0.02, 0.008), std({ map: texWood('#c9a45c', '90,60,25'), roughness: 0.8 }), 0, 0.4, 0));
+    sword.add(M(RB(0.22, 0.04, 0.03, 0.012), std({ map: texWood('#8a6a3d', '50,30,10'), roughness: 0.8 }), 0, 0.06, 0));
+    sword.add(M(new THREE.CylinderGeometry(0.02, 0.022, 0.14, 10), std({ color: 0x6b4a26, roughness: 0.85 }), 0, -0.03, 0));
+    scene.add(sword);
+    inter(sword.children[0], "épée en bois", () => { sTap(); msg("⚔️ Une épée en bois de pirate ! En garde, moussaillon !"); }, 2.8);
+
+    G.pos.set(0.1, 1.42, 0.6); G.yaw = 0; G.pitch = -0.06;
+    G.bounds = { x1: -2.0, x2: 1.9, z1: -1.1, z2: 1.7 };
+}
+
+/* -------- SALLE 6 : LA STATION SPATIALE -------- */
+function buildStation() {
+    scene.background = new THREE.Color(0x02030a);
+    scene.fog = null;
+    scene.add(room(5.6, 4.8, 2.8, texWall('#1b2430', '120,150,190', 0.08), texWall('#222c3a', '140,170,210', 0.06), 0x161e2a));
+    const amb = new THREE.AmbientLight(0x8facd8, 0.16); scene.add(amb);   // éclairage de secours au début
+    const l1 = new THREE.PointLight(0xbcd8ff, 0.22, 12); l1.position.set(0, 2.4, 0.5); scene.add(l1);
+    const l2 = new THREE.PointLight(0xff3b30, 0.5, 8); l2.position.set(-2, 1.5, -2); scene.add(l2);
+    G.tickers.push((dt, t) => { if (!powered) l2.intensity = 0.35 + Math.sin(t * 2.4) * 0.2; });   // gyrophare d'alerte
+    // bandeau LED le long du plafond
+    const leds = [];
+    for (let i = 0; i < 9; i++) { const ld = M(B(0.12, 0.03, 0.05), std({ color: 0x0a84ff, emissive: 0x0a84ff, emissiveIntensity: 0.1 }), -2.4 + i * 0.6, 2.62, -2.32); ld.castShadow = false; scene.add(ld); leds.push(ld); }
+    G.tickers.push((dt, t) => leds.forEach((ld, i) => ld.material.emissiveIntensity = powered ? 0.7 + Math.sin(t * 3 + i) * 0.3 : 0.05));
+    const space = M(new THREE.CircleGeometry(0.9, 40), new THREE.MeshBasicMaterial({ map: texSpace() }), -2.76, 1.6, 0.2, { ry: Math.PI / 2 });
+    space.castShadow = false; scene.add(space);
+    scene.add(M(new THREE.TorusGeometry(0.92, 0.08, 12, 40), std({ color: 0x9aa4ad, metalness: 0.8 }), -2.77, 1.6, 0.2, { ry: Math.PI / 2 }));
+    const bcols = [0xff3b30, 0x34c759, 0x0a84ff, 0xffd60a], bnames = ['rouge', 'vert', 'bleu', 'jaune'];
+    // CONSOLE
+    const cons = new THREE.Group(); cons.position.set(1.5, 0, -1.85);
+    cons.add(M(RB(2.0, 0.9, 0.55, 0.05), std({ color: 0x161e2a, metalness: 0.4, roughness: 0.4 }), 0, 0.45, 0));
+    cons.add(M(RB(2.0, 0.62, 0.08, 0.03), std({ color: 0x0e1420 }), 0, 1.06, 0.17, { rx: -0.4 }));
+    const scr = M(new THREE.PlaneGeometry(0.72, 0.36), new THREE.MeshBasicMaterial({ color: 0x06202a }), -0.52, 1.1, 0.24, { rx: -0.4 });
+    scr.castShadow = false; cons.add(scr);
+    const btns = [];
+    bcols.forEach((c, i) => { const b = M(new THREE.CylinderGeometry(0.062, 0.062, 0.05, 20), std({ color: c, emissive: c, emissiveIntensity: 0.25 }), 0.16 + i * 0.24, 0.93, 0.16); cons.add(b); btns.push(b); });
+    const reader = M(RB(0.15, 0.22, 0.1, 0.025), std({ color: 0x0e1420 }), -0.28, 0.72, 0.22); cons.add(reader);
+    cons.add(M(B(0.11, 0.02, 0.09), std({ color: 0x000000 }), -0.28, 0.8, 0.26));
+    scene.add(cons);
+    let sequence = [], userStep = 0, seqActive = false, cardIn = false, won = false, powered = false;
+    // TRAPPE TECHNIQUE -> fusible de rechange
+    const hatch = new THREE.Group(); hatch.position.set(-1.7, 0, -2.32);
+    hatch.add(M(B(0.56, 0.46, 0.05), std({ color: 0x222c3a, metalness: 0.5, roughness: 0.4 }), 0, 0.62, 0));
+    const hatchP = M(B(0.5, 0.4, 0.04), std({ map: texHazard() }), 0, 0.62, 0.04);
+    hatch.add(hatchP);
+    [[-0.2, 0.78], [0.2, 0.78], [-0.2, 0.46], [0.2, 0.46]].forEach(([hx, hy]) => hatch.add(M(new THREE.CylinderGeometry(0.014, 0.014, 0.03, 8), std({ color: 0x9aa4ad, metalness: 0.9 }), hx, hy, 0.055, { rx: Math.PI / 2 })));
+    scene.add(hatch);
+    let hatchOpen = false;
+    inter(hatchP, 'trappe technique', () => {
+        if (hatchOpen) { msg('🔩 Des câbles et des circuits... plus rien à prendre.'); return; }
+        hatchOpen = true; sUnlock(); tween(600, k => { hatchP.rotation.x = k * 1.5; hatchP.position.y = 0.62 - k * 0.18; });
+        msg('🔩 Derrière la trappe, parmi les câbles : un FUSIBLE de rechange !', true);
+        setTimeout(() => spawnItem(new THREE.Vector3(-1.7, 0.75, -2.05), () => { const f = new THREE.Group(); f.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.09, 10), std({ color: 0xe8e2d4, roughness: 0.4 }), 0, 0, 0)); [-0.05, 0.05].forEach(fy => f.add(M(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 10), std({ color: 0x9aa4ad, metalness: 0.9 }), 0, fy, 0))); return f; }, 'fusible', '🔌', 'le fusible'), 520);
+    }, 3.2);
+    // BOÎTE À FUSIBLES : remet le courant
+    const fbox = new THREE.Group(); fbox.position.set(2.62, 0, -0.6); fbox.rotation.y = -Math.PI / 2;
+    fbox.add(M(B(0.4, 0.5, 0.12), std({ color: 0x39424e, metalness: 0.5, roughness: 0.35 }), 0, 1.3, 0));
+    const fSlot = M(B(0.08, 0.16, 0.06), std({ color: 0x14181e }), 0, 1.3, 0.08);
+    fbox.add(fSlot);
+    const fLed = M(new THREE.SphereGeometry(0.02, 8, 8), std({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 1 }), 0.12, 1.46, 0.08);
+    fbox.add(fLed); scene.add(fbox);
+    inter(fSlot, 'boîte à fusibles', () => {
+        if (powered) { msg('⚡ Le courant est rétabli, tout ronronne.'); return; }
+        if (selId() === 'fusible') {
+            consume('fusible'); powered = true; sUnlock();
+            fLed.material.color.setHex(0x34c759); fLed.material.emissive.setHex(0x34c759);
+            tween(1400, k => { amb.intensity = 0.16 + k * 0.22; l1.intensity = 0.22 + k * 0.53; });
+            l2.color.setHex(0x7CFC9A); l2.intensity = 0.4;
+            msg('⚡ VVVVMMM ! Le fusible s\'enclenche : toute la station se rallume !', true);
+            tone(120, 0.9, 'sawtooth', 0.05);
+        } else { sNo(); msg('🔌 Une boîte à fusibles avec un emplacement VIDE. Voilà pourquoi tout est éteint !'); }
+    }, 3.2);
+    function flash(i, dur) { btns[i].material.emissiveIntensity = 1; tone([392, 523, 659, 784][i] || 440, 0.22, 'sine', 0.12); setTimeout(() => { btns[i].material.emissiveIntensity = 0.25; }, dur || 350); }
+    function playSequence() {
+        seqActive = true; userStep = 0; msg('👀 Mémorise bien la séquence de couleurs !', true);
+        let t = 700; sequence.forEach(s => { setTimeout(() => flash(s, 300), t); t += 560; });
+        setTimeout(() => { seqActive = false; msg('🎮 À toi ! Reproduis la séquence sur les 4 boutons.'); }, t);
+    }
+    inter(scr, 'écran de contrôle', () => {
+        if (won) { msg('✅ Sas déverrouillé. Direction la sortie !'); return; }
+        if (!powered) { sNo(); msg('🔴 Écran noir : la station est HORS TENSION. Trouve d\'où vient la panne...'); return; }
+        if (!cardIn) { sNo(); msg('💳 L\'écran réclame une CARTE D\'ACCÈS. Cherche-la dans la station.'); return; }
+        if (seqActive) return;
+        if (!sequence.length) sequence = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+        playSequence();
+    }, 3.8);
+    btns.forEach((b, i) => inter(b, 'bouton ' + bnames[i], () => {
+        if (won || seqActive) return;
+        if (!cardIn || !sequence.length) { sNo(); msg('💳 Insère d\'abord la carte, puis touche l\'écran pour lancer le test.'); return; }
+        flash(i, 250);
+        if (sequence[userStep] === i) {
+            userStep++;
+            if (userStep >= sequence.length) {
+                won = true; sUnlock();
+                msg('🟢 SÉQUENCE CORRECTE ! Le sas de sortie se déverrouille !', true);
+                openAirlock();
+            }
+        } else { sNo(); userStep = 0; msg('❌ Mauvaise couleur ! La séquence recommence...'); setTimeout(playSequence, 900); }
+    }, 3.8));
+    // COMPARTIMENT -> carte d'accès
+    const comp = new THREE.Group(); comp.position.set(2.62, 1.3, 0.4); comp.rotation.y = -Math.PI / 2;
+    const compLid = M(B(0.42, 0.32, 0.04), std({ color: 0x2a3340, metalness: 0.5 }), 0, 0, 0);
+    comp.add(compLid);
+    comp.add(M(new THREE.SphereGeometry(0.02, 8, 8), std({ color: 0x7CFC9A, emissive: 0x7CFC9A, emissiveIntensity: 1 }), 0.16, 0.11, 0.03));
+    scene.add(comp);
+    let compOpen = false;
+    inter(compLid, 'compartiment', () => {
+        if (compOpen) { msg('📦 Le compartiment est vide.'); return; }
+        compOpen = true; sUnlock(); tween(500, k => compLid.rotation.y = -k * 1.6);
+        msg('💳 Le compartiment s\'ouvre : une CARTE D\'ACCÈS magnétique !', true);
+        setTimeout(() => spawnItem(new THREE.Vector3(2.3, 1.3, 0.4), () => { const c = new THREE.Group(); c.add(M(B(0.15, 0.1, 0.006), std({ color: 0x1b6ec2, roughness: 0.3 }), 0, 0, 0)); c.add(M(B(0.045, 0.03, 0.008), std({ color: 0xd9b24c, metalness: 0.9 }), 0.035, 0.018, 0.004)); return c; }, 'carte', '💳', 'la carte d\'accès'), 520);
+    });
+    // LECTEUR de carte
+    inter(reader, 'lecteur de carte', () => {
+        if (!powered) { sNo(); msg('🔴 Le lecteur est éteint. Sans courant, rien ne marche ici.'); return; }
+        if (cardIn) { msg('💳 La carte est déjà insérée. Touche l\'écran !'); return; }
+        if (selId() === 'carte') { consume('carte'); cardIn = true; sUnlock(); scr.material.color.setHex(0x0d4a5e); msg('💳 Carte acceptée ! L\'écran s\'allume. Touche l\'écran pour lancer le test.', true); }
+        else { sNo(); msg('💳 Un lecteur clignote sur la console. Il faut y glisser une carte d\'accès.'); }
+    }, 3.8);
+    // SAS de sortie
+    const airG = new THREE.Group(); airG.position.set(1.2, 0, 2.38); airG.rotation.y = Math.PI;
+    airG.add(M(new THREE.TorusGeometry(0.7, 0.1, 14, 32), std({ color: 0x9aa4ad, metalness: 0.8 }), 0, 1.25, 0));
+    const airPivot = new THREE.Group(); airPivot.position.set(0, 1.25, 0.05);
+    const airDoor = M(new THREE.CylinderGeometry(0.68, 0.68, 0.08, 32), std({ color: 0x3a4757, metalness: 0.6, roughness: 0.3 }), 0, 0, 0, { rx: Math.PI / 2 });
+    const airWheel = M(new THREE.TorusGeometry(0.18, 0.03, 10, 24), std({ color: 0xd9b24c, metalness: 0.9 }), 0, 0, 0.07, { rx: Math.PI / 2 });
+    airPivot.add(airDoor); airPivot.add(airWheel); airG.add(airPivot); scene.add(airG);
+    function openAirlock() {
+        tween(1000, k => airWheel.rotation.z = k * Math.PI * 3);
+        setTimeout(() => {
+            airDoor.material.transparent = true;
+            tween(1200, k => { airPivot.position.z = 0.05 + k * 0.55; airDoor.material.opacity = 1 - k * 0.9; });
+        }, 700);
+        setTimeout(victory, 2000);
+    }
+    inter(airDoor, 'sas de sortie', () => { if (!won) { sNo(); msg('🔒 Le sas est verrouillé. Répare la console pour l\'ouvrir !'); } });
+    scene.add(dust(5.2, 2.6, 4.2));
+    doorMain = null;
+
+    // ── décor supplémentaire : caisson de fret, serre hydroponique, tuyauterie
+    const crate = new THREE.Group(); crate.position.set(2.3, 0, 1.5); crate.rotation.y = -0.35;
+    crate.add(M(RB(0.72, 0.6, 0.6, 0.05), std({ color: 0x39414d, metalness: 0.55, roughness: 0.42 }), 0, 0.3, 0));
+    crate.add(M(RB(0.74, 0.08, 0.62, 0.025), std({ color: 0x2b3038, metalness: 0.5, roughness: 0.4 }), 0, 0.44, 0));
+    crate.add(M(new THREE.PlaneGeometry(0.6, 0.1), std({ map: texHazard(), roughness: 0.6 }), 0, 0.2, 0.302));
+    crate.add(M(RB(0.5, 0.42, 0.42, 0.04), std({ color: 0x4a545f, metalness: 0.5, roughness: 0.45 }), 0.06, 0.81, -0.03, { ry: 0.4 }));
+    scene.add(crate);
+    inter(crate.children[0], "caisson de fret", () => { sTap(); msg("📦 Caisson pressurisé scellé : « RATIONS — ORBITE 7 ». Impossible de l\'ouvrir."); }, 3.0);
+    const greenh = new THREE.Group(); greenh.position.set(-2.3, 0, -0.25);
+    [[0, 0], [0, 0.62]].forEach(([px, pz], i) => {
+        const pod = new THREE.Group(); pod.position.set(px, 0, pz);
+        pod.add(M(new THREE.CylinderGeometry(0.19, 0.17, 0.26, 18), std({ color: 0x2f3a45, metalness: 0.5, roughness: 0.4 }), 0, 0.13, 0));
+        const glass = M(new THREE.SphereGeometry(0.2, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), std({ color: 0xa8e8ff, transparent: true, opacity: 0.28, roughness: 0.1, metalness: 0.1 }), 0, 0.26, 0);
+        glass.castShadow = false; pod.add(glass);
+        for (let k = 0; k < 5; k++) {
+            const a3 = k * 1.25;
+            pod.add(M(new THREE.SphereGeometry(0.045, 8, 6), std({ color: 0x4fc46b, emissive: 0x1f6b34, emissiveIntensity: 0.35, roughness: 0.7 }), Math.cos(a3) * 0.07, 0.3 + (k % 2) * 0.05, Math.sin(a3) * 0.07));
+        }
+        const gl = new THREE.PointLight(0x7fffa8, 0.3, 1.8); gl.position.set(0, 0.35, 0); pod.add(gl);
+        greenh.add(pod);
+    });
+    scene.add(greenh);
+    inter(greenh.children[0].children[0], "serre hydroponique", () => { sTick(); msg("🌱 Des pousses vertes grandissent sous une bulle de verre. La vie continue dans l\'espace !"); }, 3.0);
+    const pipes = new THREE.Group(); pipes.position.set(2.72, 0, -0.4);
+    [0.55, 0.85, 1.15].forEach((py, i) => {
+        pipes.add(M(new THREE.CylinderGeometry(0.045, 0.045, 2.2, 12), std({ color: i === 1 ? 0x4a6b8a : 0x5a636d, metalness: 0.7, roughness: 0.3 }), 0, py, 0, { rx: Math.PI / 2 }));
+        [-0.7, 0, 0.7].forEach(pz => pipes.add(M(new THREE.CylinderGeometry(0.055, 0.055, 0.07, 12), std({ color: 0x39414d, metalness: 0.6, roughness: 0.4 }), 0, py, pz, { rx: Math.PI / 2 })));
+    });
+    const glow = M(new THREE.CylinderGeometry(0.02, 0.02, 2.1, 8), std({ color: 0x35d0ff, emissive: 0x35d0ff, emissiveIntensity: 0.8 }), -0.06, 1.32, 0, { rx: Math.PI / 2 });
+    glow.castShadow = false; pipes.add(glow);
+    G.tickers.push((dt, t) => { glow.material.emissiveIntensity = 0.55 + Math.sin(t * 2.6) * 0.3; });
+    scene.add(pipes);
+    inter(pipes.children[0], "tuyauterie", () => { sTick(); msg("🔧 Des conduites d\'oxygène ronronnent. Un liquide bleu circule dans le tube lumineux."); }, 3.0);
+
+    G.pos.set(-0.2, 1.5, 1.2); G.yaw = Math.PI; G.pitch = 0;
+    G.bounds = { x1: -2.0, x2: 2.0, z1: -1.1, z2: 1.8 };
+}
+
+/* -------- SALLE 7 : LE MANOIR (3 pièces : salon → bibliothèque → bureau) -------- */
+function buildManoir() {
+    scene.background = new THREE.Color(0x0d0a08);
+    scene.fog = new THREE.Fog(0x0d0a08, 8, 22);
+    const wallTx = texWall('#7a6a52', '210,190,150', 0.1);
+    scene.add(room(11, 5.2, 2.9, texWood('#6b4a26', '40,20,6'), wallTx, 0xD8CDBB));
+    scene.add(new THREE.AmbientLight(0xffe9c4, 0.3));
+    // zones de déplacement : salon (A) / passage / bibliothèque (B) / passage / bureau (C)
+    const zA = { x1: -5.2, x2: -2.04, z1: -2.3, z2: 2.3, on: true };
+    const zAB = { x1: -2.04, x2: -1.62, z1: -0.24, z2: 0.86, on: false };
+    const zB = { x1: -1.62, x2: 1.62, z1: -2.3, z2: 2.3, on: false };
+    const zBC = { x1: 1.62, x2: 2.06, z1: -1.05, z2: 0.06, on: false };
+    const zC = { x1: 2.06, x2: 5.2, z1: -2.3, z2: 2.3, on: false };
+    G.zones = [zA, zAB, zB, zBC, zC];
+    // cloisons intérieures avec encadrements (gap monde z=0.3 => local -0.3 ; z=-0.5 => local 0.5)
+    scene.add(innerWall(-1.84, 0, Math.PI / 2, 5.2, 2.9, wallTx, -0.3, 1.06));
+    scene.add(innerWall(1.84, 0, Math.PI / 2, 5.2, 2.9, wallTx, 0.5, 1.06));
+
+    /* ===== PIÈCE A · LE SALON ===== */
+    const chem = fireplace(-5.25, -0.4, Math.PI / 2, 'ANNO 1870');
+    scene.add(chem);
+    inter(chem.userData.plaque, 'inscription gravée', () => msg('🪨 Gravé dans la pierre : « ANNO 1870 ». L\'année de construction du manoir...', true), 2.8);
+    // tisonnier appuyé contre la cheminée
+    const poker = new THREE.Group(); poker.position.set(-5.05, 0, 0.62); poker.rotation.z = 0.16;
+    poker.add(M(new THREE.CylinderGeometry(0.012, 0.014, 0.85, 8), std({ color: 0x2e3238, metalness: 0.8, roughness: 0.35 }), 0, 0.42, 0));
+    poker.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.07, 8), std({ color: 0x8a6a1d, metalness: 0.9 }), 0, 0.86, 0));
+    scene.add(poker);
+    let pokerGot = false;
+    inter(poker.children[0], 'tisonnier', () => {
+        if (pokerGot) return;
+        pokerGot = true; scene.remove(poker); removeInter(poker);
+        addItem('tisonnier', '🪝', 'le tisonnier', 'poker');
+    }, 2.8);
+    // braises : les remuer avec le tisonnier révèle une petite clé
+    let emberDone = false;
+    inter(chem.userData.ember, 'braises', () => {
+        if (emberDone) { msg('🔥 Les braises rougeoient doucement...'); return; }
+        if (selId() === 'tisonnier') {
+            emberDone = true; sUnlock();
+            tween(700, k => chem.userData.ember.position.x = Math.sin(k * Math.PI * 4) * 0.06);
+            msg('🔥 Tu remues les braises avec le tisonnier... une PETITE CLÉ noircie apparaît dans la cendre !', true);
+            setTimeout(() => spawnItem(new THREE.Vector3(-4.85, 0.35, -0.4), () => makeKey(0x4a4038), 'clecoffret', '🗝️', 'la clé du coffret', 'keyS'), 550);
+        } else { sNo(); msg('🔥 Les braises sont BRÛLANTES ! Il faudrait un outil pour les remuer sans se brûler...'); }
+    }, 2.8);
+    // bougeoir sur le manteau + horloge comtoise (déco)
+    const cand = new THREE.Group(); cand.position.set(-5.13, 1.38, -1.0);
+    cand.add(M(new THREE.CylinderGeometry(0.05, 0.07, 0.04, 12), std({ color: 0x8a6a1d, metalness: 0.8, roughness: 0.3 }), 0, 0.02, 0));
+    [[-0.06, 0.16], [0, 0.2], [0.06, 0.16]].forEach(([cx2, ch2]) => {
+        cand.add(M(new THREE.CylinderGeometry(0.012, 0.012, ch2, 8), std({ color: 0xf4e8c8, roughness: 0.6 }), cx2, 0.04 + ch2 / 2, 0));
+        cand.add(M(new THREE.SphereGeometry(0.014, 8, 6), std({ color: 0xffd23b, emissive: 0xffb020, emissiveIntensity: 1.2 }), cx2, 0.06 + ch2, 0));
+    });
+    const candL = new THREE.PointLight(0xffc46b, 0.4, 2.6); candL.position.set(0, 0.3, 0.1); cand.add(candL);
+    G.tickers.push((dt, t) => candL.intensity = 0.34 + Math.sin(t * 11) * 0.07);
+    scene.add(cand);
+    const hClock = new THREE.Group(); hClock.position.set(-4.55, 0, 2.32); hClock.rotation.y = Math.PI;
+    hClock.add(M(RB(0.5, 2.2, 0.32, 0.04), std({ map: texWood('#4a2d13', '20,10,2'), roughness: 0.5 }), 0, 1.1, 0));
+    const hFace = M(new THREE.CircleGeometry(0.17, 24), new THREE.MeshBasicMaterial({ map: texClock(9) }), 0, 1.78, 0.17);
+    hFace.castShadow = false; hClock.add(hFace);
+    const pend = M(new THREE.SphereGeometry(0.05, 10, 8), std({ color: 0xb8933b, metalness: 0.9, roughness: 0.25 }), 0, 0.7, 0.14);
+    hClock.add(pend);
+    G.tickers.push((dt, t) => pend.position.x = Math.sin(t * 2.2) * 0.09);
+    scene.add(hClock);
+    inter(hFace, 'horloge comtoise', () => { sTick(); msg('🕰️ Tic... tac... La vieille horloge bat comme un cœur tranquille.'); }, 2.8);
+    scene.add(ceilingLamp(-3.6, 0, 2.9, 0x8a2f1f, 0xffd9a8, 0.85, 9));
+    scene.add(windowUnit(-3.6, 1.62, -2.56, 0, 1.4, 1.15));
+    const moonA = new THREE.PointLight(0xbcd0ff, 0.35, 6); moonA.position.set(-3.6, 1.6, -2.1); scene.add(moonA);
+    // tapis persan
+    const rug = M(new THREE.PlaneGeometry(2.3, 1.6), std({ map: texRug(), roughness: 0.95 }), -3.6, 0.012, 0.35, { rx: -Math.PI / 2 });
+    rug.castShadow = false; scene.add(rug);
+    // canapé + coussin -> clé argentée du salon
+    const sofa = new THREE.Group(); sofa.position.set(-3.6, 0, 1.85); sofa.rotation.y = Math.PI;
+    const velvet = std({ color: 0x5c2a2a, roughness: 0.85 });
+    sofa.add(M(RB(1.9, 0.42, 0.8, 0.1), velvet, 0, 0.21, 0));
+    sofa.add(M(RB(1.9, 0.62, 0.18, 0.08), velvet, 0, 0.65, -0.32));
+    [-0.86, 0.86].forEach(px => sofa.add(M(RB(0.18, 0.6, 0.8, 0.075), velvet, px, 0.42, 0)));
+    [[-0.45, 0x8a6a1d], [0.45, 0x2f4a6b]].forEach(([px, cc]) => sofa.add(M(RB(0.42, 0.13, 0.42, 0.055), std({ color: cc, roughness: 0.9 }), px, 0.48, 0.05, { ry: 0.2 * Math.sign(px) })));
+    scene.add(sofa);
+    const cushion = sofa.children[5];
+    let cushDone = false;
+    inter(cushion, 'coussin', () => {
+        if (!cushDone) {
+            cushDone = true; sUnlock();
+            tween(500, k => { cushion.position.y = 0.48 + Math.sin(k * Math.PI) * 0.3; cushion.rotation.z = k * 0.7; });
+            msg('🛋️ Sous le coussin de velours... la clé de la BIBLIOTHÈQUE !', true);
+            setTimeout(() => spawnItem(new THREE.Vector3(-3.15, 0.55, 1.8), () => makeKey(0xc9ced6), 'clesalon', '🗝️', 'la clé de la bibliothèque', 'keyS'), 480);
+        } else msg('🛋️ Rien d\'autre sous ce coussin.');
+    }, 2.8);
+    inter(sofa.children[0], 'canapé', () => msg('🛋️ Un canapé de velours rouge. Les coussins ont l\'air moelleux...'), 2.8);
+    // table basse + note (ordre des livres)
+    const table = new THREE.Group(); table.position.set(-3.6, 0, 0.5);
+    table.add(M(B(0.9, 0.05, 0.5), std({ map: texWood('#4a2d13', '20,10,2'), roughness: 0.4 }), 0, 0.4, 0));
+    [[-0.4, -0.2], [0.4, -0.2], [-0.4, 0.2], [0.4, 0.2]].forEach(([px, pz]) => table.add(M(B(0.05, 0.4, 0.05), std({ color: 0x2a1a0c }), px, 0.2, pz)));
+    // coffret verrouillé (clé cachée dans les braises)
+    const box = new THREE.Group(); box.position.set(0.1, 0.425, 0.02); table.add(box); scene.add(table);
+    box.add(M(B(0.34, 0.14, 0.24), std({ map: texWood('#5c3a1c', '30,15,4'), roughness: 0.45 }), 0, 0.07, 0));
+    const boxLid = new THREE.Group(); boxLid.position.set(0, 0.14, -0.12);
+    boxLid.add(M(B(0.34, 0.05, 0.24), std({ map: texWood('#5c3a1c', '30,15,4'), roughness: 0.45 }), 0, 0.025, 0.12));
+    box.add(boxLid);
+    const boxLock = M(B(0.05, 0.07, 0.02), std({ color: 0x8a6a1d, metalness: 0.8 }), 0, 0.1, 0.13);
+    box.add(boxLock);
+    let boxOpen = false;
+    const openBox = () => {
+        if (boxOpen) { msg('📦 Le coffret est ouvert, la note est à l\'intérieur.'); showNote('Journal du majordome\n\n« Dans la bibliothèque, le savoir suit un ordre :\nle FEU d\'abord, l\'OCÉAN ensuite, la FORÊT enfin.\nTire les livres dans cet ordre, et le mur te répondra. »', false); return; }
+        if (selId() === 'clecoffret') {
+            consume('clecoffret'); boxOpen = true; sUnlock();
+            tween(500, k => boxLid.rotation.x = -k * 1.7);
+            msg('🔓 Le coffret s\'ouvre : une note manuscrite du majordome !', true);
+            setTimeout(() => showNote('Journal du majordome\n\n« Dans la bibliothèque, le savoir suit un ordre :\nle FEU d\'abord, l\'OCÉAN ensuite, la FORÊT enfin.\nTire les livres dans cet ordre, et le mur te répondra. »', true), 700);
+        } else { sNo(); msg('🔒 Un joli coffret en bois... fermé par une minuscule serrure. Où est sa clé ?'); }
+    };
+    inter(box.children[0], 'coffret en bois', openBox, 2.8);
+    inter(boxLock, 'serrure du coffret', openBox, 2.8);
+    scene.add(pottedPlant(-4.9, 2.0, 1.15));
+    scene.add(wallArt(-3.0, 1.7, 2.53, Math.PI, 0.7, 0.9, texPainting()));
+    // porte salon -> bibliothèque
+    scene.add(innerDoor(-1.84, 0.3, Math.PI / 2, 0x6b4a26, {
+        name: 'porte de la bibliothèque', keyId: 'clesalon',
+        lockMsg: '🔒 La porte de la bibliothèque est fermée à clé. Fouille le salon...',
+        openMsg: '🔓 La porte s\'ouvre sur une bibliothèque aux mille livres !',
+        zones: [zAB, zB], reach: 3.0
+    }));
+
+    /* ===== PIÈCE B · LA BIBLIOTHÈQUE ===== */
+    scene.add(ceilingLamp(0, 0, 2.9, 0x2e4a2e, 0xffe9c4, 0.8, 8));
+    scene.add(bookCase(-1.55, -1.3, Math.PI / 2, 1.9, 2.3));
+    scene.add(bookCase(-0.3, -2.42, 0, 2.2, 2.3, '#4a2d13'));
+    scene.add(bookCase(1.55, 1.4, -Math.PI / 2, 1.7, 2.3));
+    scene.add(pottedPlant(-1.4, 2.05, 0.95));
+    scene.add(wallArt(0.6, 1.85, 2.5, Math.PI, 0.6, 0.75, texPoster('🦉', '#2e3a2e')));
+    // fauteuil de lecture
+    const chair = new THREE.Group(); chair.position.set(0.9, 0, 1.7); chair.rotation.y = -2.4;
+    const leather = std({ color: 0x3a4a2e, roughness: 0.75 });
+    chair.add(M(B(0.62, 0.35, 0.6), leather, 0, 0.175, 0));
+    chair.add(M(B(0.62, 0.6, 0.14), leather, 0, 0.62, -0.24));
+    [-0.29, 0.29].forEach(px => chair.add(M(B(0.1, 0.5, 0.6), leather, px, 0.38, 0)));
+    scene.add(chair);
+    inter(chair.children[0], 'fauteuil de lecture', () => msg('🪑 Un fauteuil en cuir usé par des années de lecture...'), 2.6);
+    // ÉNIGME : 3 livres à tirer dans l'ordre ROUGE (feu) → BLEU (océan) → VERT (forêt)
+    const shelf = new THREE.Group(); shelf.position.set(1.05, 0, -2.28);
+    shelf.add(M(B(1.5, 1.5, 0.28), std({ map: texWood('#5c3a1c', '30,15,4'), roughness: 0.6 }), 0, 0.95, 0));
+    shelf.add(M(B(1.4, 0.03, 0.24), std({ map: texWood('#5c3a1c', '30,15,4') }), 0, 1.22, 0.02));
+    const bookDefs = [
+        { c: 0x8a2f1f, id: 0, nm: 'livre rouge' }, { c: 0xd9a821, id: 9, nm: 'livre jaune' },
+        { c: 0x1f4a8a, id: 1, nm: 'livre bleu' }, { c: 0x5c2a6b, id: 9, nm: 'livre violet' },
+        { c: 0x2f6b35, id: 2, nm: 'livre vert' }
+    ];
+    const wantSeq = [0, 1, 2]; let seq = [], secretOpen = false;
+    bookDefs.forEach((bd, i) => {
+        const bm = M(B(0.09, 0.34, 0.2), std({ color: bd.c, roughness: 0.6 }), -0.5 + i * 0.25, 1.42, 0.05);
+        shelf.add(bm);
+        inter(bm, bd.nm, () => {
+            if (secretOpen) { msg('📚 Le compartiment secret est déjà ouvert.'); return; }
+            tween(320, k => bm.position.z = 0.05 + Math.sin(k * Math.PI) * 0.12);
+            tone(320 + i * 40, 0.08, 'square', 0.07);
+            if (bd.id === 9) { seq = []; sNo(); msg('📕 Ce livre ne bouge pas d\'un pouce... Ce n\'est pas le bon. On recommence !'); return; }
+            if (wantSeq[seq.length] === bd.id) {
+                seq.push(bd.id);
+                msg('📖 CLIC... (' + seq.length + '/3) Le mécanisme s\'enclenche.');
+                if (seq.length === 3) {
+                    secretOpen = true; sUnlock();
+                    msg('🔓 Un panneau du meuble coulisse : un compartiment SECRET !', true);
+                    setTimeout(() => spawnItem(new THREE.Vector3(1.05, 0.55, -2.0), () => makeKey(0xb8933b), 'clebiblio', '🗝️', 'la clé du bureau', 'keyS'), 600);
+                }
+            } else { seq = []; sNo(); msg('❌ Grrr... le mécanisme se réenclenche. Feu, océan, forêt : dans l\'ORDRE !'); }
+        }, 2.4);
+    });
+    scene.add(shelf);
+    // porte bibliothèque -> bureau
+    scene.add(innerDoor(1.84, -0.5, Math.PI / 2, 0x4a2d13, {
+        name: 'porte du bureau', keyId: 'clebiblio',
+        lockMsg: '🔒 La porte du bureau du maître est verrouillée. Les livres cachent sûrement la clé...',
+        openMsg: '🔓 Le bureau du maître du manoir s\'ouvre à toi !',
+        zones: [zBC, zC], reach: 3.0
+    }));
+
+    /* ===== PIÈCE C · LE BUREAU DU MAÎTRE ===== */
+    scene.add(ceilingLamp(3.7, 0, 2.9, 0x2e2a24, 0xffd9a8, 0.85, 9));
+    scene.add(windowUnit(3.7, 1.62, -2.56, 0, 1.4, 1.15));
+    const moonC = new THREE.PointLight(0xbcd0ff, 0.35, 6); moonC.position.set(3.7, 1.6, -2.1); scene.add(moonC);
+    scene.add(pottedPlant(2.4, -2.05, 1.0));
+    scene.add(wallArt(5.44, 1.6, 1.6, -Math.PI / 2, 0.75, 0.95, texPainting()));
+    // grand bureau en acajou + globe + lampe banquier
+    const desk = new THREE.Group(); desk.position.set(3.9, 0, -1.55);
+    desk.add(M(B(1.7, 0.06, 0.8), std({ map: texWood('#4a2d13', '20,10,2'), roughness: 0.35 }), 0, 0.76, 0));
+    [-0.78, 0.78].forEach(px => desk.add(M(B(0.1, 0.76, 0.7), std({ map: texWood('#4a2d13', '20,10,2') }), px, 0.38, 0)));
+    desk.add(M(new THREE.CylinderGeometry(0.09, 0.12, 0.16, 12), std({ color: 0x1f6b4a, roughness: 0.4, emissive: 0x1f6b4a, emissiveIntensity: 0.35 }), -0.45, 0.87, -0.1));
+    const dLamp = new THREE.PointLight(0x9effc4, 0.5, 3); dLamp.position.set(-0.45, 1.0, -0.1); desk.add(dLamp);
+    const globe = M(new THREE.SphereGeometry(0.14, 12, 10), std({ color: 0x2f4a6b, metalness: 0.3, roughness: 0.5 }), 0.5, 0.93, -0.15);
+    desk.add(globe);
+    scene.add(desk);
+    inter(globe, 'globe terrestre', () => { tween(900, k => globe.rotation.y = k * Math.PI * 2); msg('🌍 Le globe du maître tourne en silence...'); }, 2.8);
+    scene.add(dresserUnit(5.28, 0.3, -Math.PI / 2, {
+        w: 1.1, h: 0.95, d: 0.48, tex: texWood('#4a2d13', '20,10,2'),
+        drawers: [
+            { label: 'tiroir à plumes', msg: '🪶 Des plumes d\'oie et un encrier séché. Élégant, mais inutile.', emptyMsg: '🪶 Toujours des plumes.' },
+            { label: 'tiroir du registre', note: 'Registre du manoir\n\n« Le coffre-fort n\'obéit qu\'à une seule combinaison :\nl\'ANNÉE gravée dans la pierre de la cheminée du salon. »', emptyMsg: '📒 Le vieux registre.' },
+            { label: 'tiroir coincé', msg: '😤 Ce tiroir est coincé depuis des lustres. Impossible de l\'ouvrir.', emptyMsg: '😤 Toujours coincé.' }
+        ]
+    }));
+    // coffre-fort mural (code 1870) -> clé dorée de la sortie
+    const safe = new THREE.Group(); safe.position.set(4.6, 0, 2.32); safe.rotation.y = Math.PI;
+    safe.add(M(RB(0.66, 0.66, 0.3, 0.04), std({ color: 0x2e3238, metalness: 0.7, roughness: 0.35 }), 0, 1.15, 0));
+    const sDoor = M(RB(0.56, 0.56, 0.05, 0.035), std({ color: 0x3a4048, metalness: 0.75, roughness: 0.3 }), 0, 1.15, 0.17);
+    safe.add(sDoor);
+    safe.add(M(new THREE.TorusGeometry(0.09, 0.02, 10, 20), std({ color: 0xb8933b, metalness: 0.9 }), 0, 1.15, 0.2, { rx: Math.PI / 2 }));
+    scene.add(safe);
+    let safeOpen = false;
+    inter(sDoor, 'coffre-fort', () => {
+        if (safeOpen) { msg('🔓 Le coffre-fort est vide maintenant.'); return; }
+        openPad('1870', () => {
+            safeOpen = true;
+            tween(800, k => sDoor.rotation.y = -k * 1.7);
+            msg('🔓 CLONK ! Le coffre-fort s\'ouvre : la clé dorée de la GRANDE PORTE !', true);
+            setTimeout(() => spawnItem(new THREE.Vector3(4.6, 1.15, 1.95), () => makeKey(0xf4c542), 'clemanoir', '🔑', 'la clé du manoir', 'keyG', 1.4), 600);
+        });
+    }, 2.8);
+    // GRANDE PORTE de sortie (mur est)
+    doorMain = makeDoor(5.42, 0.9, -Math.PI / 2, 0x3a2412); scene.add(doorMain);
+    inter(doorMain.userData.pivot.children[0], 'grande porte', () => {
+        if (has('clemanoir')) victoryDoor();
+        else { sNo(); msg('🔒 La grande porte du manoir est verrouillée à double tour. Il faut sa clé dorée.'); }
+    }, 3.0);
+    scene.add(dust(10.4, 2.7, 4.6));
+
+    // ── décor supplémentaire : buste, desserte à thé, tapisserie (salon) / échelle (biblio) / fumoir (bureau)
+    const bust = new THREE.Group(); bust.position.set(-2.15, 0, -1.95);
+    const marble = std({ color: 0xe4e0d6, roughness: 0.35, metalness: 0.05 });
+    bust.add(M(RB(0.34, 0.9, 0.34, 0.03), std({ color: 0xd8d2c4, roughness: 0.45 }), 0, 0.45, 0));
+    bust.add(M(RB(0.42, 0.06, 0.42, 0.02), std({ color: 0xc8c0b0, roughness: 0.4 }), 0, 0.93, 0));
+    bust.add(M(new THREE.SphereGeometry(0.13, 16, 12), marble, 0, 1.16, 0));
+    bust.add(M(new THREE.CylinderGeometry(0.14, 0.2, 0.22, 16), marble, 0, 1.0, 0));
+    bust.add(M(new THREE.SphereGeometry(0.14, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), std({ color: 0xd0c8b8, roughness: 0.5 }), 0, 1.19, -0.01));
+    scene.add(bust);
+    inter(bust.children[2], "buste de marbre", () => { sTick(); msg("🗿 Un buste sévère vous fixe... ses yeux de pierre semblent vous suivre. Frisson !"); }, 2.6);
+    const tea = new THREE.Group(); tea.position.set(-4.05, 0, 2.05);
+    const twood = std({ map: texWood('#5a3a1c', '30,15,4'), roughness: 0.5 });
+    [0.42, 0.72].forEach(py => tea.add(M(RB(0.52, 0.035, 0.36, 0.014), twood, 0, py, 0)));
+    [[-0.22, -0.14], [0.22, -0.14], [-0.22, 0.14], [0.22, 0.14]].forEach(([px, pz]) =>
+        tea.add(M(new THREE.CylinderGeometry(0.016, 0.016, 0.72, 8), std({ color: 0x3a2412, metalness: 0.3, roughness: 0.6 }), px, 0.36, pz)));
+    const pot2 = new THREE.Group(); pot2.position.set(-0.1, 0.74, 0);
+    pot2.add(M(new THREE.SphereGeometry(0.085, 14, 10), std({ color: 0xf4f0e8, roughness: 0.25 }), 0, 0.08, 0));
+    pot2.add(M(new THREE.CylinderGeometry(0.05, 0.06, 0.03, 12), std({ color: 0xf4f0e8, roughness: 0.25 }), 0, 0.16, 0));
+    pot2.add(M(new THREE.ConeGeometry(0.028, 0.09, 10), std({ color: 0xf4f0e8, roughness: 0.25 }), 0.09, 0.09, 0, { rz: -0.9 }));
+    tea.add(pot2);
+    [[0.12, -0.08], [0.16, 0.08]].forEach(([px, pz]) => {
+        tea.add(M(new THREE.CylinderGeometry(0.042, 0.032, 0.05, 14), std({ color: 0xf4f0e8, roughness: 0.25 }), px, 0.765, pz));
+        tea.add(M(new THREE.CylinderGeometry(0.07, 0.07, 0.006, 14), std({ color: 0xefe6d4, roughness: 0.3 }), px, 0.742, pz));
+    });
+    scene.add(tea);
+    inter(pot2.children[0], "desserte à thé", () => { sTick(); msg("🫖 Un service à thé en porcelaine. Le thé est froid depuis... très longtemps."); }, 2.6);
+    scene.add(wallArt(-5.44, 1.55, -1.25, Math.PI / 2, 1.0, 1.3, cnv(160, 208, (g2, w2, h2) => {
+        g2.fillStyle = '#6b2f2f'; g2.fillRect(0, 0, w2, h2);
+        g2.fillStyle = '#8a4a3a'; for (let y2 = 0; y2 < h2; y2 += 26) for (let x2 = 0; x2 < w2; x2 += 26) { g2.beginPath(); g2.arc(x2 + 13, y2 + 13, 8, 0, 7); g2.fill(); }
+        g2.fillStyle = '#c9a45c'; g2.fillRect(12, 12, w2 - 24, 6); g2.fillRect(12, h2 - 18, w2 - 24, 6);
+        g2.fillStyle = '#d9c08a'; g2.beginPath(); g2.moveTo(w2 / 2, 52); g2.lineTo(w2 / 2 + 34, h2 / 2); g2.lineTo(w2 / 2, h2 - 52); g2.lineTo(w2 / 2 - 34, h2 / 2); g2.closePath(); g2.fill();
+        g2.fillStyle = '#6b2f2f'; g2.beginPath(); g2.arc(w2 / 2, h2 / 2, 16, 0, 7); g2.fill();
+    })));
+    // BIBLIOTHÈQUE : échelle coulissante (portée courte, inaccessible depuis le salon)
+    const ladder = new THREE.Group(); ladder.position.set(0.95, 0, -2.3); ladder.rotation.x = -0.14;
+    const lwood = std({ map: texWood('#7a4a22', '45,25,8'), roughness: 0.6 });
+    [-0.2, 0.2].forEach(px => ladder.add(M(RB(0.05, 2.3, 0.05, 0.018), lwood, px, 1.15, 0)));
+    for (let k = 0; k < 7; k++) ladder.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 10), lwood, 0, 0.28 + k * 0.3, 0, { rz: Math.PI / 2 }));
+    ladder.add(M(new THREE.CylinderGeometry(0.03, 0.03, 0.46, 10), std({ color: 0xb8933b, metalness: 0.85, roughness: 0.25 }), 0, 2.32, -0.03, { rz: Math.PI / 2 }));
+    scene.add(ladder);
+    inter(ladder.children[0], "échelle de bibliothèque", () => { sTap(); msg("🪜 Une échelle qui glisse le long des rayonnages. Elle grince joyeusement."); }, 2.5);
+    // BUREAU : guéridon fumeur, boîte à cigares, encrier
+    const smok = new THREE.Group(); smok.position.set(4.72, 0, -1.85);
+    const swood = std({ map: texWood('#4a2d13', '20,10,2'), roughness: 0.45 });
+    smok.add(M(new THREE.CylinderGeometry(0.28, 0.3, 0.05, 20), swood, 0, 0.72, 0));
+    smok.add(M(new THREE.CylinderGeometry(0.045, 0.06, 0.7, 12), swood, 0, 0.36, 0));
+    smok.add(M(new THREE.CylinderGeometry(0.2, 0.22, 0.04, 16), swood, 0, 0.025, 0));
+    const cigar = M(RB(0.24, 0.08, 0.16, 0.018), std({ map: texWood('#8a5a2b', '55,30,10'), roughness: 0.4 }), -0.02, 0.79, 0, { ry: 0.3 });
+    smok.add(cigar);
+    smok.add(M(RB(0.2, 0.012, 0.13, 0.006), std({ color: 0xb8933b, metalness: 0.8, roughness: 0.3 }), -0.02, 0.836, 0, { ry: 0.3 }));
+    const inkw = new THREE.Group(); inkw.position.set(0.16, 0.745, 0.02);
+    inkw.add(M(new THREE.CylinderGeometry(0.05, 0.055, 0.06, 14), std({ color: 0x1b2430, roughness: 0.2, metalness: 0.15 }), 0, 0.03, 0));
+    inkw.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 10), std({ color: 0x0d1218 }), 0, 0.07, 0));
+    inkw.add(M(new THREE.ConeGeometry(0.012, 0.24, 8), std({ color: 0xf0e8d4, roughness: 0.8 }), 0.02, 0.19, 0.01, { rz: -0.35 }));
+    smok.add(inkw);
+    scene.add(smok);
+    inter(cigar, "boîte à cigares", () => { sTap(); msg("🚬 Une boîte à cigares en acajou, vide. Elle sent encore le tabac et le vieux bois."); }, 2.5);
+    inter(inkw.children[0], "encrier", () => { sTick(); msg("🖋️ Un encrier de cristal et une plume d\'oie. L\'encre a séché depuis des lustres."); }, 2.5);
+
+    G.pos.set(-3.6, 1.5, 1.1); G.yaw = Math.PI * 0.5; G.pitch = 0;
+    G.bounds = null;
+}
+
+/* -------- SALLE 8 : LE LABO SECRET (2 pièces : laboratoire → salle des machines) -------- */
+function buildLabo() {
+    scene.background = new THREE.Color(0x060a0d);
+    scene.fog = new THREE.Fog(0x060a0d, 7, 18);
+    const wallTx = texWall('#2a3440', '150,180,210', 0.07);
+    scene.add(room(6, 9, 2.8, texWall('#39424e', '90,100,115', 0.14), wallTx, 0x1c242e));
+    scene.add(new THREE.AmbientLight(0x9fc4e8, 0.32));
+    // zones : labo (nord) / passage / salle des machines (sud)
+    const zLab = { x1: -2.7, x2: 2.7, z1: 0.72, z2: 4.2, on: true };
+    const zP = { x1: -0.6, x2: 0.6, z1: 0.1, z2: 0.85, on: false };
+    const zMach = { x1: -2.7, x2: 2.7, z1: -4.2, z2: 0.24, on: false };
+    G.zones = [zLab, zP, zMach];
+    scene.add(innerWall(0, 0.45, 0, 6, 2.8, wallTx, 0, 1.24));
+
+    /* ===== PIÈCE 1 · LE LABORATOIRE ===== */
+    scene.add(ceilingLamp(0, 2.5, 2.8, 0x39424e, 0xdfffff, 0.9, 10));
+    scene.add(pipeRun(0, 2.45, 4.42, 0, 5.4, 0.06, 0x7a838d));
+    scene.add(pipeRun(-2.92, 1.9, 2.4, Math.PI / 2, 3.2, 0.045, 0x8a5a2b));
+    // paillasse : béchers fluorescents qui bouillonnent, microscope
+    const bench = new THREE.Group(); bench.position.set(-1.6, 0, 4.05);
+    bench.add(M(RB(2.4, 0.88, 0.6, 0.04), std({ color: 0xdfe4e8, roughness: 0.4 }), 0, 0.44, 0));
+    bench.add(M(RB(2.46, 0.05, 0.66, 0.02), std({ color: 0x2b3038, metalness: 0.4, roughness: 0.3 }), 0, 0.9, 0));
+    [[-0.8, 0x7CFC9A], [-0.45, 0x6fb2ff], [-0.1, 0xd86fff]].forEach(([px, cc], bi) => {
+        const bk = M(new THREE.CylinderGeometry(0.055, 0.07, 0.16, 12), std({ color: cc, transparent: true, opacity: 0.55, emissive: cc, emissiveIntensity: 0.4 }), px, 1.0, 0.05);
+        bench.add(bk);
+        G.tickers.push((dt, t) => bk.scale.y = 1 + Math.sin(t * 5 + bi * 2) * 0.06);
+    });
+    const micro = M(new THREE.CylinderGeometry(0.05, 0.09, 0.3, 10), std({ color: 0x2e3238, metalness: 0.6 }), 0.6, 1.06, 0, { rx: 0.4 });
+    bench.add(micro);
+    scene.add(bench);
+    inter(bench.children[2], 'béchers', () => { tone(700, 0.2, 'sine', 0.05); msg('🧪 Blub blub... des liquides fluorescents bouillonnent doucement.'); }, 2.8);
+    inter(micro, 'microscope', () => msg('🔬 Tu regardes dans le microscope... des cellules qui dansent !'), 2.8);
+    // écran mural : consigne des pressions (3-1-2)
+    scene.add(M(B(1.0, 0.66, 0.05), std({ color: 0x14181e }), 1.9, 1.6, 4.44));
+    const scrFace = M(new THREE.PlaneGeometry(0.9, 0.56), new THREE.MeshBasicMaterial({ map: texScreenLines(['PROTOCOLE 7 :', 'PRESSION VANNES', '>>  3 - ? - 2  <<'], true) }), 1.9, 1.6, 4.41, { ry: Math.PI });
+    scrFace.castShadow = false; scene.add(scrFace);
+    inter(scrFace, 'écran du protocole', () => msg('🖥️ « PROTOCOLE 7 — Pressions : 3 · ? · 2 ». Le chiffre du milieu est EFFACÉ... quelqu\'un l\'a sûrement noté quelque part.', true), 3.0);
+    // étagère de fioles colorées + extincteur (déco)
+    const vialShelf = new THREE.Group(); vialShelf.position.set(-2.9, 0, 3.2); vialShelf.rotation.y = Math.PI / 2;
+    vialShelf.add(M(B(1.2, 0.04, 0.24), std({ color: 0x39424e, metalness: 0.5 }), 0, 1.55, 0));
+    [0xff3b30, 0x34c759, 0x0a84ff, 0xffd60a, 0xd86fff, 0x7CFC9A].forEach((vc, vi) => {
+        const vial = M(new THREE.CylinderGeometry(0.028, 0.034, 0.12 + (vi % 3) * 0.03, 10), std({ color: vc, transparent: true, opacity: 0.6, emissive: vc, emissiveIntensity: 0.35 }), -0.48 + vi * 0.19, 1.64, 0);
+        vialShelf.add(vial);
+    });
+    scene.add(vialShelf);
+    inter(vialShelf.children[1], 'fioles colorées', () => { tone(880, 0.15, 'sine', 0.05); msg('⚗️ Des fioles multicolores qui luisent doucement. Mieux vaut ne pas les mélanger !'); }, 2.8);
+    const exting = new THREE.Group(); exting.position.set(-2.7, 0, 0.95);
+    exting.add(M(new THREE.CylinderGeometry(0.07, 0.07, 0.42, 12), std({ color: 0xd0342c, roughness: 0.35, metalness: 0.3 }), 0, 0.21, 0));
+    exting.add(M(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 8), std({ color: 0x2e3238, metalness: 0.7 }), 0, 0.46, 0));
+    scene.add(exting);
+    inter(exting.children[0], 'extincteur', () => msg('🧯 Un extincteur rouge, bien accroché. Sécurité avant tout !'), 2.8);
+    // casier métallique -> badge d'accès
+    const locker = new THREE.Group(); locker.position.set(2.72, 0, 2.4); locker.rotation.y = -Math.PI / 2;
+    locker.add(M(RB(0.7, 1.9, 0.5, 0.045), std({ color: 0x4a6b8a, metalness: 0.5, roughness: 0.4 }), 0, 0.95, 0));
+    const lkDoor = M(RB(0.64, 1.8, 0.05, 0.03), std({ color: 0x5a7ba0, metalness: 0.55, roughness: 0.35 }), 0, 0.95, 0.26);
+    locker.add(lkDoor);
+    [0.5, 1.4].forEach(yy => locker.add(M(B(0.4, 0.03, 0.06), std({ color: 0x2e3846 }), 0, yy, 0.29)));
+    scene.add(locker);
+    let lkOpen = false;
+    inter(lkDoor, 'casier métallique', () => {
+        if (lkOpen) { msg('🧥 Une blouse blanche et des lunettes de protection. C\'est tout.'); return; }
+        lkOpen = true; sUnlock(); tween(600, k => lkDoor.rotation.y = -k * 1.8);
+        msg('🎫 Dans le casier : un BADGE d\'accès... et un POST-IT collé au fond !', true);
+        const postit = M(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshBasicMaterial({
+            map: cnv(128, 128, (g2, w2, h2) => { g2.fillStyle = '#ffe45c'; g2.fillRect(0, 0, w2, h2); g2.fillStyle = '#333'; g2.font = 'bold 30px sans-serif'; g2.textAlign = 'center'; g2.fillText('vanne 2', w2 / 2, 52); g2.font = 'bold 46px sans-serif'; g2.fillText('= 1', w2 / 2, 100); })
+        }), -0.15, 1.15, 0.2, { rz: 0.12 });
+        postit.castShadow = false; locker.add(postit);
+        inter(postit, 'post-it jaune', () => msg('📝 Sur le post-it : « vanne 2 = pression 1 ». Le chiffre manquant du protocole !', true), 2.8);
+        setTimeout(() => spawnItem(new THREE.Vector3(2.45, 1.2, 2.4), () => { const c = new THREE.Group(); c.add(M(B(0.13, 0.09, 0.006), std({ color: 0xeef1f4, roughness: 0.4 }), 0, 0, 0)); c.add(M(B(0.11, 0.025, 0.008), std({ color: 0xd0342c }), 0, 0.025, 0.004)); return c; }, 'badge', '🎫', 'le badge d\'accès'), 520);
+    }, 2.8);
+    // porte coulissante blindée (badge) + bandes de danger
+    [-0.75, 0.75].forEach(px => scene.add(M(B(0.26, 2.06, 0.2), std({ map: texHazard() }), px, 1.03, 0.45)));
+    const slide = M(B(1.24, 2.02, 0.12), std({ color: 0x39424e, metalness: 0.7, roughness: 0.3 }), 0, 1.03, 0.45);
+    scene.add(slide);
+    scene.add(M(B(0.16, 0.24, 0.08), std({ color: 0x14181e }), 0.85, 1.15, 0.6));
+    const bLight = M(new THREE.SphereGeometry(0.025, 8, 8), std({ color: 0xff3b30, emissive: 0xff3b30, emissiveIntensity: 1 }), 0.85, 1.32, 0.62);
+    scene.add(bLight);
+    let slideOpen = false;
+    const tryBadge = () => {
+        if (slideOpen) { msg('🚪 La porte blindée est ouverte.'); return; }
+        if (selId() === 'badge') {
+            slideOpen = true; sUnlock();
+            bLight.material.color.setHex(0x34c759); bLight.material.emissive.setHex(0x34c759);
+            tween(1100, k => slide.position.x = -k * 1.3);
+            zP.on = true; zMach.on = true;
+            msg('🟢 BIP ! Badge accepté. La porte blindée coulisse dans un chuintement...', true);
+        } else { sNo(); msg('🔴 Un lecteur de badge clignote en rouge. Il te faut un badge d\'accès.'); }
+    };
+    inter(slide, 'porte blindée', tryBadge, 3.0);
+    inter(bLight, 'lecteur de badge', tryBadge, 3.0);
+
+    /* ===== PIÈCE 2 · LA SALLE DES MACHINES ===== */
+    const machLamp = ceilingLamp(0, -2.2, 2.8, 0x2e2a24, 0xffb860, 0.75, 9);
+    scene.add(machLamp);
+    G.tickers.push((dt, t) => machLamp.userData.light.intensity = 0.68 + Math.sin(t * 3.1) * 0.08);
+    scene.add(pipeRun(0, 2.4, -4.42, 0, 5.4, 0.07, 0x8a5a2b));
+    scene.add(pipeRun(2.92, 1.7, -2.2, Math.PI / 2, 3.6, 0.05, 0x7a838d));
+    // chaudière ronronnante avec manomètre
+    const boiler = new THREE.Group(); boiler.position.set(-2.2, 0, -3.6);
+    boiler.add(M(new THREE.CylinderGeometry(0.55, 0.55, 1.9, 18), std({ color: 0x6b4028, metalness: 0.6, roughness: 0.45 }), 0, 0.95, 0));
+    boiler.add(M(new THREE.SphereGeometry(0.55, 18, 12, 0, Math.PI * 2, 0, Math.PI / 2), std({ color: 0x6b4028, metalness: 0.6, roughness: 0.45 }), 0, 1.9, 0));
+    const gauge = M(new THREE.CircleGeometry(0.12, 20), new THREE.MeshBasicMaterial({ map: texDial() }), 0, 1.3, 0.56);
+    gauge.castShadow = false; boiler.add(gauge);
+    scene.add(boiler);
+    inter(boiler.children[0], 'chaudière', () => { tone(90, 0.5, 'sawtooth', 0.04); msg('🔥 La vieille chaudière ronronne... toute la pression passe par les VANNES colorées.'); }, 3.0);
+    // ÉNIGME : 3 vannes à régler sur 3-1-2
+    const vals = [0, 0, 0], want = [3, 1, 2], vDisp = [];
+    let ventOpen = false;
+    const vcols = [0xd0342c, 0x2f6b8a, 0xd9a821];
+    for (let i = 0; i < 3; i++) {
+        const vg = new THREE.Group(); vg.position.set(-1.2 + i * 1.2, 0, -4.28);
+        vg.add(M(new THREE.CylinderGeometry(0.09, 0.11, 0.5, 10), std({ color: 0x4a525c, metalness: 0.7 }), 0, 0.25, 0));
+        const wheel = M(new THREE.TorusGeometry(0.17, 0.028, 10, 22), std({ color: vcols[i], metalness: 0.6, roughness: 0.35 }), 0, 0.72, 0.06, { rx: 0.35 });
+        vg.add(wheel);
+        const dsp = emojiSprite('0', 0.14); dsp.position.set(0, 1.08, 0.1); vg.add(dsp); vDisp.push(dsp);
+        scene.add(vg);
+        inter(wheel, 'vanne ' + (i + 1), () => {
+            if (ventOpen) { msg('✅ La pression est réglée, la grille est ouverte !'); return; }
+            vals[i] = (vals[i] + 1) % 5;
+            tween(350, k => wheel.rotation.y = vals[i] * 1.2 + k * 1.2);
+            vDisp[i].material.map = cnv(128, 128, (c2, w2, h2) => { c2.font = 'bold 88px monospace'; c2.fillStyle = '#7CFC9A'; c2.textAlign = 'center'; c2.textBaseline = 'middle'; c2.fillText(String(vals[i]), w2 / 2, h2 / 2 + 4); });
+            vDisp[i].material.needsUpdate = true;
+            tone(240 + vals[i] * 60, 0.07, 'square', 0.07);
+            msg('🔧 Vanne ' + (i + 1) + ' → pression ' + vals[i]);
+            if (vals.join('') === want.join('')) {
+                ventOpen = true; sUnlock();
+                msg('💨 PSSSHHHT ! La pression est parfaite : la GRILLE DE SECOURS se déverrouille !', true);
+                tone(160, 0.8, 'sawtooth', 0.06);
+            }
+        }, 3.0);
+    }
+    // grille de ventilation = sortie de secours (mur sud)
+    const vent = new THREE.Group(); vent.position.set(1.9, 0, -4.4); vent.rotation.y = Math.PI;
+    vent.add(M(B(1.0, 1.3, 0.08), std({ color: 0x39424e, metalness: 0.6, roughness: 0.4 }), 0, 0.75, 0));
+    for (let i = 0; i < 5; i++) vent.add(M(B(0.84, 0.06, 0.05), std({ color: 0x1c242e }), 0, 0.35 + i * 0.2, 0.05));
+    scene.add(vent);
+    inter(vent.children[0], 'grille de secours', () => {
+        if (!ventOpen) { sNo(); msg('🔒 « ISSUE DE SECOURS — Déverrouillage par pression des vannes ». Elle ne bouge pas.'); return; }
+        sUnlock(); msg('🔓 Tu soulèves la grille... un tunnel vers la LIBERTÉ !', true);
+        tween(1000, k => { vent.position.y = k * 1.5; vent.rotation.x = -k * 0.5; });
+        setTimeout(victory, 1200);
+    }, 3.0);
+    scene.add(dust(5.4, 2.6, 8.4));
+    doorMain = null;
+
+    // ── décor supplémentaire : tableau périodique, robot de ménage, bonbonnes, caisse à outils
+    scene.add(wallArt(-2.94, 1.65, 2.0, Math.PI / 2, 1.15, 0.8, cnv(230, 160, (g2, w2, h2) => {
+        g2.fillStyle = '#101820'; g2.fillRect(0, 0, w2, h2);
+        const cols = ['#3fa9d4', '#4fc46b', '#f0c419', '#e0742a', '#c95fb5'];
+        for (let r4 = 0; r4 < 6; r4++) for (let c4 = 0; c4 < 12; c4++) {
+            if ((r4 === 0 && c4 > 0 && c4 < 11) || (r4 === 1 && c4 > 1 && c4 < 9)) continue;
+            g2.fillStyle = cols[(r4 + c4) % 5]; g2.globalAlpha = 0.85;
+            g2.fillRect(10 + c4 * 18, 12 + r4 * 24, 15, 20);
+        }
+        g2.globalAlpha = 1; g2.fillStyle = '#e8f4ff'; g2.font = 'bold 13px sans-serif'; g2.textAlign = 'center';
+        g2.fillText('TABLEAU PÉRIODIQUE', w2 / 2, h2 - 8);
+    })));
+    const robo = new THREE.Group(); robo.position.set(0.9, 0, 2.5);
+    robo.add(M(new THREE.CylinderGeometry(0.24, 0.26, 0.11, 22), std({ color: 0xdfe6ec, roughness: 0.35, metalness: 0.3 }), 0, 0.06, 0));
+    robo.add(M(new THREE.CylinderGeometry(0.2, 0.24, 0.05, 22), std({ color: 0x39414d, metalness: 0.6, roughness: 0.4 }), 0, 0.13, 0));
+    const eye = M(new THREE.SphereGeometry(0.035, 12, 10), std({ color: 0x35d0ff, emissive: 0x35d0ff, emissiveIntensity: 0.9 }), 0, 0.15, 0.17);
+    eye.castShadow = false; robo.add(eye);
+    const roboL = new THREE.PointLight(0x35d0ff, 0.25, 1.4); roboL.position.set(0, 0.2, 0); robo.add(roboL);
+    scene.add(robo);
+    G.tickers.push((dt, t) => {
+        robo.position.x = 0.9 + Math.cos(t * 0.5) * 0.85;
+        robo.position.z = 2.5 + Math.sin(t * 0.5) * 0.85;
+        robo.rotation.y = -t * 0.5;
+        eye.material.emissiveIntensity = 0.7 + Math.sin(t * 4) * 0.25;
+    });
+    inter(robo.children[0], "robot de nettoyage", () => { sTick(); msg("🤖 Bip bip ! Le petit robot aspire la poussière en tournant... inlassablement."); }, 2.6);
+    const tanks = new THREE.Group(); tanks.position.set(2.5, 0, 3.85);
+    [[-0.17, 0x3fa9d4, 'O₂'], [0.17, 0xe07b2a, 'H₂']].forEach(([px, cc], i) => {
+        const tk = new THREE.Group(); tk.position.set(px, 0, i * 0.12);
+        tk.add(M(new THREE.CylinderGeometry(0.13, 0.13, 0.86, 18), std({ color: cc, metalness: 0.6, roughness: 0.35 }), 0, 0.43, 0));
+        tk.add(M(new THREE.SphereGeometry(0.13, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), std({ color: cc, metalness: 0.6, roughness: 0.35 }), 0, 0.86, 0));
+        tk.add(M(new THREE.CylinderGeometry(0.035, 0.035, 0.1, 12), std({ color: 0x8a949d, metalness: 0.85, roughness: 0.2 }), 0, 1.0, 0));
+        tk.add(M(new THREE.TorusGeometry(0.05, 0.012, 8, 16), std({ color: 0xc0392b, metalness: 0.7, roughness: 0.3 }), 0, 1.03, 0, { rx: Math.PI / 2 }));
+        tanks.add(tk);
+    });
+    scene.add(tanks);
+    inter(tanks.children[0].children[0], "bonbonnes de gaz", () => { sTap(); msg("🫧 Deux bonbonnes sous pression : oxygène et hydrogène. À ne surtout pas mélanger !"); }, 2.8);
+    const tools = new THREE.Group(); tools.position.set(-2.35, 0, -3.75); tools.rotation.y = 0.4;
+    tools.add(M(RB(0.44, 0.2, 0.24, 0.03), std({ color: 0xc0392b, metalness: 0.4, roughness: 0.45 }), 0, 0.1, 0));
+    tools.add(M(RB(0.42, 0.06, 0.23, 0.022), std({ color: 0x9a2f22, metalness: 0.4, roughness: 0.45 }), 0, 0.22, 0));
+    tools.add(M(new THREE.TorusGeometry(0.07, 0.012, 8, 16), std({ color: 0x39414d, metalness: 0.7, roughness: 0.3 }), 0, 0.3, 0, { rx: Math.PI / 2 }));
+    scene.add(tools);
+    inter(tools.children[0], "caisse à outils", () => { sTap(); msg("🧰 Une caisse à outils rouge. Clés, pinces, tournevis... tout est bien rangé."); }, 2.4);
+
+    G.pos.set(0, 1.5, 3.4); G.yaw = 0; G.pitch = 0;
+    G.bounds = null;
+}
+
+/* ============================================================
+   NIVEAUX / FLUX DE JEU
+   ============================================================ */
+const LEVELS3D = [
+    { nm: 'Le Bureau du Détective', ic: '🕵️', dc: 'Tapis, tiroir, tableau pivotant, coffre à code...', build: buildBureau, seated: false,
+      goal: 'La porte est fermée à double tour. Fouille le bureau et perce le secret du coffre !',
+      hints: ['Regarde sous le tapis rouge...', 'La petite clé ouvre le tiroir du bureau : une note s\'y cache.', 'Horloge 9h · 3 livres rouges · 2 personnages → code 932, derrière le tableau !'] },
+    { nm: 'La Chambre des Petits', ic: '🧸', dc: 'Oreiller, armoire, lampe torche et coffre à jouets', build: buildChambre, seated: false,
+      goal: 'La porte de la chambre est fermée ! Trouve la clé dorée avant l\'heure du dodo...',
+      hints: ['Soulève l\'oreiller du lit !', 'La clé argentée ouvre l\'armoire : prends la lampe torche.', 'Sélectionne la torche 🎒 et éclaire SOUS le lit !'] },
+    { nm: 'La Voiture de Nuit', ic: '🚗', dc: 'Assis à bord : pare-soleil, boîte à gants, garniture...', build: buildVoiture, seated: true,
+      goal: 'Sécurité enfant activée : la portière refuse de s\'ouvrir ! Trouve le mécanisme caché.',
+      hints: ['Baisse le pare-soleil au-dessus du volant...', 'La petite clé ouvre la boîte à gants : un outil t\'attend.', 'Dévisse la garniture de la portière avec le tournevis, puis presse le bouton rouge !'] },
+    { nm: 'La Cuisine Ensorcelée', ic: '🍳', dc: 'Frigo, meuble à 3 tiroirs, four à code et gâteau magique', build: buildCuisine, seated: false,
+      goal: 'Le garde-manger est verrouillé ! Prépare la recette magique pour faire apparaître la clé...',
+      hints: ['Ouvre le frigo : une petite clé aimantée est collée au fond. Elle ouvre le tiroir verrouillé → la télécommande.', 'La télécommande n\'a plus de PILES : fouille les pots de l\'étagère (sel, poivre... farine !).', 'Compte les bougies du gâteau (7) : règle le four sur 772 et récupère la clé du gâteau.'] },
+    { nm: 'Le Grenier au Trésor', ic: '🏴‍☠️', dc: 'Loupe, carte au trésor, coffre à molettes et trappe secrète', build: buildGrenier, seated: false,
+      goal: 'Te voilà enfermé dans le grenier ! Trouve le trésor des pirates et la trappe pour t\'échapper.',
+      hints: ['Ouvre la vieille malle près de toi : une loupe s\'y cache.', 'Sélectionne la loupe 🔍 dans le sac, puis touche la carte au trésor : un code apparaît !', 'Règle les molettes sur 4-1-9 → clé rouillée → grand coffre → clé de la trappe.'] },
+    { nm: 'La Station Spatiale', ic: '🚀', dc: 'Hublot sur les étoiles, carte d\'accès et console à séquence', build: buildStation, seated: false,
+      goal: 'Perdu dans l\'espace ! Répare la console de commande et ouvre le sas avant de manquer d\'air...',
+      hints: ['Tout est éteint ! Ouvre la trappe technique (mur du fond) : un FUSIBLE s\'y cache. Mets-le dans la boîte à fusibles.', 'Le courant revenu : compartiment mural → carte d\'accès 💳 → lecteur de la console → écran.', 'Mémorise la séquence de couleurs qui clignotent, puis reproduis-la sur les 4 boutons.'] },
+    { nm: 'Le Manoir de 1870', ic: '🏰', dc: '3 pièces à traverser : salon, bibliothèque et bureau du maître', build: buildManoir, seated: false,
+      goal: 'Enfermé dans le vieux manoir ! Traverse les trois pièces, perce leurs secrets... et sors par la grande porte.',
+      hints: ['Prends le TISONNIER près de la cheminée et remue les braises : une clé s\'y cache. Elle ouvre le coffret de la table basse.', 'Coussin du canapé → clé de la bibliothèque. Puis tire les livres dans l\'ordre FEU → OCÉAN → FORÊT (rouge, bleu, vert).', 'Le coffre-fort du bureau s\'ouvre avec l\'année gravée sur la cheminée : 1870.'] },
+    { nm: 'Le Labo Secret', ic: '🧪', dc: '2 pièces : laboratoire, porte blindée et salle des machines', build: buildLabo, seated: false,
+      goal: 'Le laboratoire est en confinement ! Trouve le badge, franchis la porte blindée et règle la pression pour t\'évader.',
+      hints: ['Ouvre le casier métallique : un badge y est accroché, et un POST-IT est collé au fond.', 'L\'écran affiche 3 · ? · 2 — le post-it donne le chiffre manquant. Badge 🎫 → lecteur de la porte blindée.', 'Salle des machines : règle les 3 vannes sur 3 - 1 - 2, puis soulève la grille de secours.'] }
+];
+
+function clearLevel() {
+    anims.length = 0;
+    G.tickers = [];
+    G.inter = [];
+    G.zones = null;
+    if (radioTimer) { clearInterval(radioTimer); radioTimer = null; }
+    doorMain = null;
+}
+function loadLevel(i) {
+    ctx();
+    clearLevel();
+    G.idx = i;
+    G.level = LEVELS3D[i];
+    G.inv = []; G.sel = -1; G.hintIdx = 0;
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 60);
+    resize();
+    G.seated = G.level.seated;
+    G.level.build();
+    setupHeld();
+    renderInv();
+    document.getElementById('hTitle').textContent = G.level.ic + ' ' + G.level.nm;
+    document.getElementById('menu').classList.remove('show');
+    document.getElementById('win').classList.remove('show');
+    document.getElementById('hud').classList.add('show');
+    document.getElementById('inv').classList.add('show');
+    document.getElementById('joy').classList.toggle('show', !G.seated);
+    keepAwake(true);
+    document.getElementById('fade').style.opacity = 0;
+    G.playing = true; G.t0 = Date.now();
+    if (G.timerId) clearInterval(G.timerId);
+    G.timerId = setInterval(tick, 500); tick();
+    msg('🎯 ' + G.level.goal, true);
+}
+function tick() {
+    const s = Math.floor((Date.now() - G.t0) / 1000);
+    document.getElementById('hTimer').textContent = '⏱ ' + String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+function victoryDoor() {
+    if (doorMain) tween(1100, k => doorMain.userData.pivot.rotation.y = -k * 1.9);
+    sUnlock();
+    msg('🔓 La porte s\'ouvre en grand...', true);
+    setTimeout(victory, 1200);
+}
+function victory() {
+    if (!G.playing) return;
+    G.playing = false;
+    clearInterval(G.timerId);
+    const secs = Math.floor((Date.now() - G.t0) / 1000);
+    progress[G.idx] = true; saveP();
+    document.getElementById('fade').style.opacity = 1;
+    sWin();
+    speak('Bravo ! Tu t\'es échappé !');
+    for (let i = 0; i < 26; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.textContent = ['🎉', '✨', '🎊', '⭐', '🔑'][i % 5];
+        c.style.left = Math.random() * 96 + '%';
+        c.style.animationDuration = (2 + Math.random() * 2.2) + 's';
+        c.style.animationDelay = (Math.random() * 0.7) + 's';
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 5400);
+    }
+    document.getElementById('winTime').textContent = '⏱ Échappé en ' + Math.floor(secs / 60) + ' min ' + (secs % 60) + ' s';
+    const hasNext = G.idx + 1 < LEVELS3D.length;
+    document.getElementById('bNext').style.display = hasNext ? '' : 'none';
+    document.getElementById('winT').textContent = hasNext ? 'BRAVO !' : '🏆 TOUT EST TERMINÉ !';
+    setTimeout(() => {
+        document.getElementById('hud').classList.remove('show');
+        document.getElementById('inv').classList.remove('show');
+        document.getElementById('joy').classList.remove('show');
+        document.getElementById('win').classList.add('show');
+    }, 1000);
+}
+function showMenu() {
+    keepAwake(false);
+    G.playing = false;
+    if (G.timerId) clearInterval(G.timerId);
+    if (radioTimer) { clearInterval(radioTimer); radioTimer = null; }
+    ['hud', 'inv', 'joy'].forEach(id => document.getElementById(id).classList.remove('show'));
+    document.getElementById('win').classList.remove('show');
+    document.getElementById('fade').style.opacity = 0;
+    renderCards();
+    document.getElementById('menu').classList.add('show');
+}
+function renderCards() {
+    const box = document.getElementById('cards');
+    box.innerHTML = '';
+    LEVELS3D.forEach((lv, i) => {
+        const c = document.createElement('button');
+        c.className = 'card';
+        c.innerHTML = '<span class="ic">' + lv.ic + '</span><span class="nm">' + lv.nm + '</span>' +
+                      '<span class="dc">' + lv.dc + '</span><span class="st">' + (progress[i] ? '⭐ Terminé' : '🔐') + '</span>';
+        c.addEventListener('click', () => loadLevel(i));
+        box.appendChild(c);
+    });
+}
+
+/* --- clavier à code --- */
+let padVal = '', padCode = '', padOk = null;
+function openPad(code, onOk) {
+    padVal = ''; padCode = code; padOk = onOk;
+    document.getElementById('padDisp').textContent = '_';
+    document.getElementById('pad').classList.add('show');
+    sTap();
+}
+document.querySelectorAll('.pk').forEach(k => k.addEventListener('click', function () {
+    const v = this.textContent;
+    if (v === '⌫') { padVal = padVal.slice(0, -1); sTap(); }
+    else if (v === '✔') {
+        if (padVal === padCode) {
+            document.getElementById('pad').classList.remove('show');
+            sUnlock();
+            if (padOk) padOk();
+        } else { padVal = ''; sNo(); msg('❌ Mauvais code... observe encore la pièce !'); }
+    } else if (padVal.length < 6) { padVal += v; sTap(); }
+    document.getElementById('padDisp').textContent = padVal.split('').map(() => '•').join('') || '_';
+}));
+document.getElementById('padClose').addEventListener('click', () => document.getElementById('pad').classList.remove('show'));
+
+/* --- parchemin --- */
+function showNote(txt, spoken) {
+    document.getElementById('noteTxt').textContent = txt;
+    document.getElementById('note').classList.add('show');
+    if (spoken) speak(txt);
+}
+document.getElementById('noteClose').addEventListener('click', () => document.getElementById('note').classList.remove('show'));
+
+/* --- header --- */
+document.getElementById('bHome').addEventListener('click', showMenu);
+document.getElementById('bRestart').addEventListener('click', () => loadLevel(G.idx));
+document.getElementById('bHint').addEventListener('click', () => {
+    if (!G.level) return;
+    const hs = G.level.hints;
+    msg('💡 ' + hs[Math.min(G.hintIdx, hs.length - 1)], true);
+    G.hintIdx = Math.min(G.hintIdx + 1, hs.length - 1);
+});
+document.getElementById('bNext').addEventListener('click', () => loadLevel(G.idx + 1));
+document.getElementById('bWinMenu').addEventListener('click', showMenu);
+
+renderCards();
+resize();
+window.__E3D = { G, loadLevel, showMenu };   // hook de test
+})();
+</script>
+</body>
+</html>
